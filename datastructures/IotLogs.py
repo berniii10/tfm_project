@@ -31,6 +31,23 @@ class IotLogs:
 
         elif iot_log.layer == Layer.NAS:
             self.nas_log.append(iot_log)
+    
+    def getInfo(layer):
+        pass
+
+    def searchPrach(self):
+        found = 0
+        for phy_iot_log in self.phy_log:
+            if phy_iot_log.info == 'PRACH':
+                found = 1
+            elif phy_iot_log.direction == Direction:
+                print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
+                return -1
+
+        if found == 0:
+            print(f"Could not find IoT PRACH log")
+            return -1
+
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo):

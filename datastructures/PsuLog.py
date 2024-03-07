@@ -11,6 +11,9 @@ class PsuLogs:
         self.amperes = float(amperes)
         self.volts = float(volts)
         self.origin = float(origin)
+
+    def searchSpike(self):
+        pass
         
 
 def loadPsuData(myDb, campaignId):

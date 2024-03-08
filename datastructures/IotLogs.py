@@ -1,3 +1,4 @@
+import sys
 from psycopg2 import Error
 from datastructures.enums import *
 
@@ -21,6 +22,9 @@ class IotLogs:
     def addIotLog(self, iot_log):
 
         self.iot_logs.append(iot_log)
+
+        if iot_log.slot > 0:
+            pass
 
         if iot_log.layer == Layer.PHY:
             self.phy_indexes.append(iot_log.index)
@@ -127,14 +131,14 @@ class IotLogs:
         calctime = 0.0
         hfn = 0; #*10240 ms
         frame = 0; #*10 ms
-        slot = 0; #*0.5 ms
+        slot = 0.0; #*0.5 ms
         distance = 0
-        offsetTimestamp = float(self.iot_logs[0].frame * 10 + self.iot_logs[0].slot)
+        offsetTimestamp = float(self.iot_logs[0].frame * 10 + self.iot_logs[0].slot * 0.5)
         biggestFrameForCurrentHfn = self.iot_logs[0].frame
 
         for i in range (0, len(self.phy_indexes), 1):
-            frame = self.iot_logs[i].frame
-            slot = self.iot_logs[i].slot
+            frame = self.iot_logs[self.phy_indexes[i]].frame
+            slot  = self.iot_logs[self.phy_indexes[i]].slot
 
             if (frame < 0 or frame > 1023): #frame value range is 0-1023
                 print(f"frame value ({frame}) is out range. Valid range is 0-1023")
@@ -147,7 +151,7 @@ class IotLogs:
             distance = frame - biggestFrameForCurrentHfn
             if (distance >= 512):
                 #Previous HFN
-                calctime = ((hfn - 1) * 10240 + frame * 10 + slot *0.5 - offsetTimestamp) / 1000; #HFN variable should never move backward in time so we do not update the variable
+                calctime = float((hfn - 1) * 10240 + frame * 10 + slot * 0.5 - offsetTimestamp) / 1000; #HFN variable should never move backward in time so we do not update the variable
             
             else:
                 if (distance > 0):
@@ -158,15 +162,15 @@ class IotLogs:
                     hfn += 1
                     biggestFrameForCurrentHfn = frame
             
-                calctime = (hfn * 10240 + frame * 10 + slot * 0.5 - offsetTimestamp) / 1000
+                calctime = float(hfn * 10240 + frame * 10 + slot * 0.5 - offsetTimestamp) / 1000
             
-            if (calctime == float.MaxValue):
+            if (calctime == sys.float_info.max):
                 calctime /= 10.0; # Log does not have a real timestamp might be due to the measurement being cut. However to avoid a db overflow we divide by 10
             
-            phyTimeInSecsAndIndexesList.append((calctime, self.phyIndexes[i]))
+            self.phyTimeInSecsAndIndexesList.append((calctime, self.phy_indexes[i]))
         
         #Sort the list by calculated timestamp in seconds based on HFN, frame, slot
-        phyTimeInSecsAndIndexesList = sorted(phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+        self.phyTimeInSecsAndIndexesList = sorted(self.phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
         return 1
     
 class IotLog:

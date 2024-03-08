@@ -112,7 +112,7 @@ class IotLogs:
     #Important note: the log entries are not sorted - they can vary several milliseconds. Example: log_entry1=time10, log_entry2=time8, log_entry3=time12
     #The FRAME value range is 0-1023. When FRAME wraps around HFN has to count one up.
     #The algorithm below will accept time difference on 512 * 10 ms in delay of "old" log entries and accept 511 * 10 ms in future (and same FRAME as previous biggest FRAME = 0 ms different).
-    #The timestamp is calculated like HFN * 10240ms + FRAME * 10ms + slot * 1ms
+    #The timestamp is calculated like HFN * 10240ms + FRAME * 10ms + slot * 0.5ms
 
     #      0 <--------------------------- FRAME range ---------------------------> 1023
     #      |                                                                      |
@@ -132,7 +132,7 @@ class IotLogs:
         offsetTimestamp = float(self.iot_logs[0].frame * 10 + self.iot_logs[0].slot)
         biggestFrameForCurrentHfn = self.iot_logs[0].frame
 
-        for i in range (0, len(self.phy_indexes, 1)):
+        for i in range (0, len(self.phy_indexes), 1):
             frame = self.iot_logs[i].frame
             slot = self.iot_logs[i].slot
 
@@ -147,7 +147,7 @@ class IotLogs:
             distance = frame - biggestFrameForCurrentHfn
             if (distance >= 512):
                 #Previous HFN
-                calctime = ((hfn - 1) * 10240 + frame * 10 + slot - offsetTimestamp) / 1000; #HFN variable should never move backward in time so we do not update the variable
+                calctime = ((hfn - 1) * 10240 + frame * 10 + slot *0.5 - offsetTimestamp) / 1000; #HFN variable should never move backward in time so we do not update the variable
             
             else:
                 if (distance > 0):
@@ -158,7 +158,7 @@ class IotLogs:
                     hfn += 1
                     biggestFrameForCurrentHfn = frame
             
-                calctime = (hfn * 10240 + frame * 10 + slot - offsetTimestamp) / 1000
+                calctime = (hfn * 10240 + frame * 10 + slot * 0.5 - offsetTimestamp) / 1000
             
             if (calctime == float.MaxValue):
                 calctime /= 10.0; # Log does not have a real timestamp might be due to the measurement being cut. However to avoid a db overflow we divide by 10
@@ -167,7 +167,7 @@ class IotLogs:
         
         #Sort the list by calculated timestamp in seconds based on HFN, frame, slot
         phyTimeInSecsAndIndexesList = sorted(phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
-
+        return 1
     
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index):

@@ -24,6 +24,7 @@ def myMain():
 
     psu_logs.calculateTimePsuAndPower()
     iot_logs.findHighestFrameAndSlot()
+    iot_logs.sortPhyLogEntries()
 
     psuRawPlot(psu_logs=psu_logs)
 

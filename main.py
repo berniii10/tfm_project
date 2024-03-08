@@ -1,30 +1,29 @@
 import database.DbConnection as DbConnection
-from datastructures.IotLogs import loadIotData
-from datastructures.PsuLog import loadPsuData
+from datastructures.IotLogs import IotLogs
+from datastructures.PsuLog import PsuLogs
 from view.common import *
-from datastructures.enums import Direction
 
 def myMain():
     myDb = DbConnection.connectToDb()
+    iot_logs = IotLogs()
+    psu_logs = PsuLogs()
 
-    iot_logs = loadIotData(myDb=myDb, campaignId=170)
-    if iot_logs == -1:
+    if iot_logs.loadIotData(myDb=myDb, campaignId=170) == -1:
         return -1
         
-    psu_logs = loadPsuData(myDb=myDb, campaignId=170)
-    if psu_logs == -1:
+    if psu_logs.loadPsuData(myDb=myDb, campaignId=170) == -1:
         return -1
 
-    found = iot_logs.searchPrach()
-    if found == -1:
+    foundPrach = iot_logs.searchPrach()
+    if foundPrach == -1:
         return -1
     
+    foundVoltageSpike = psu_logs.searchVoltageSPike()
+    if foundVoltageSpike == -1:
+        return -1
 
-
-    max = 0.0
-    for psu_log in psu_logs:
-        if float(psu_log.volts) > max:
-            max = float(psu_log.volts)
+    psu_logs.calculateTimePsuAndPower()
+    iot_logs.findHighestFrameAndSlot()
 
     psuRawPlot(psu_logs=psu_logs)
 

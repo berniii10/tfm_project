@@ -6,51 +6,171 @@ def getIotQuery(CampaignId):
 
 class IotLogs:
 
-    phy_log = []
-    mac_log = []
-    rrc_log = []
-    rlc_log = []
-    nas_log = []
+    iot_logs = []
+    phy_indexes = []
+    mac_indexes = []
+    rrc_indexes = []
+    rlc_indexes = []
+    nas_indexes = []
+
+    phyTimeInSecsAndIndexesList = []
 
     def __init__(self):
         pass
     
     def addIotLog(self, iot_log):
 
+        self.iot_logs.append(iot_log)
+
         if iot_log.layer == Layer.PHY:
-            self.phy_log.append(iot_log)
+            self.phy_indexes.append(iot_log.index)
 
         elif iot_log.layer == Layer.MAC:
-            self.mac_log.append(iot_log)
+            self.mac_indexes.append(iot_log.index)
 
         elif iot_log.layer == Layer.RRC:
-            self.rrc_log.append(iot_log)
+            self.rrc_indexes.append(iot_log.index)
 
         elif iot_log.layer == Layer.RLC:
-            self.rlc_log.append(iot_log)
+            self.rlc_indexes.append(iot_log.index)
 
         elif iot_log.layer == Layer.NAS:
-            self.nas_log.append(iot_log)
+            self.nas_indexes.append(iot_log.index)
     
-    def getInfo(layer):
-        pass
+    def getLayerCount(self, layer):
+        if layer == Layer.PHY:
+            return len(self.phy_indexes)
+
+        elif layer == Layer.MAC:
+            return len(self.mac_indexes)
+
+        elif layer == Layer.RRC:
+            return len(self.rrc_indexes)
+
+        elif layer == Layer.RLC:
+            return len(self.rlc_indexes)
+
+        elif layer == Layer.NAS:
+            return len(self.nas_indexes)
+
+    def loadIotData(self, myDb, campaignId):
+        try:
+            print("Loading IoT Data")
+            cursor = myDb.cursor()
+
+            cursor.execute(getIotQuery(campaignId))
+            rows = cursor.fetchall()
+
+            # Process the result set and create instance of IotLogs class
+            
+            for i, row in enumerate(rows):
+                self.addIotLog(IotLog(*row, i))
+
+            # Close the cursor and connection
+            cursor.close()
+            
+            print("IoT Data loaded correctly")
+
+            if self.getLayerCount(layer=Layer.PHY) == 0:
+                print("No PHY log entries found in the Iot log")
+                return -1
+
+            return 1
+
+        except Error as e:
+            print(f"Error: {e}")
+            return -1
 
     def searchPrach(self):
-        found = 0
-        for phy_iot_log in self.phy_log:
+        found = -1
+        for phy_iot_log in self.iot_logs:
             if phy_iot_log.info == 'PRACH':
                 found = 1
+                return found
             elif phy_iot_log.direction == Direction:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
-                return -1
+                return found
 
         if found == 0:
             print(f"Could not find IoT PRACH log")
-            return -1
+            return found
 
+    def findHighestFrameAndSlot(self):
+        frame = -1
+        slot = -1
+        for iot_log in self.iot_logs:
 
+            if frame < iot_log.frame:
+                frame = iot_log.frame
+
+            if slot < iot_log.slot:
+                slot = iot_log.slot
+
+        print(f"Biggest Frame: {frame}. Biggest Slot: {slot}")
+
+    #Now sort the Phy log entries using FRAME and slot and at the same time keep track of the HFN which increases every time FRAME wraps around.
+    #Important note: the log entries are not sorted - they can vary several milliseconds. Example: log_entry1=time10, log_entry2=time8, log_entry3=time12
+    #The FRAME value range is 0-1023. When FRAME wraps around HFN has to count one up.
+    #The algorithm below will accept time difference on 512 * 10 ms in delay of "old" log entries and accept 511 * 10 ms in future (and same FRAME as previous biggest FRAME = 0 ms different).
+    #The timestamp is calculated like HFN * 10240ms + FRAME * 10ms + slot * 1ms
+
+    #      0 <--------------------------- FRAME range ---------------------------> 1023
+    #      |                                                                      |
+    #      |  Past 0-511            PrevBiggestFRAME=512     Future 513-1023        |
+    #      |  Future 0-510 (HFN+1)  Past 511-1022          PrevBiggestFRAME=1023    |
+    #      |  PrevBiggestFRAME=0      Future 1-510           Past 511-1022 (HFN-1)  |
+
+    #Key: calculated timestamp in seconds based on HFN, FRAME, slot
+    #Value: index in tapDbDataIoTLog
+    def sortPhyLogEntries(self):
+
+        calctime = 0.0
+        hfn = 0; #*10240 ms
+        frame = 0; #*10 ms
+        slot = 0; #*0.5 ms
+        distance = 0
+        offsetTimestamp = float(self.iot_logs[0].frame * 10 + self.iot_logs[0].slot)
+        biggestFrameForCurrentHfn = self.iot_logs[0].frame
+
+        for i in range (0, len(self.phy_indexes, 1)):
+            frame = self.iot_logs[i].frame
+            slot = self.iot_logs[i].slot
+
+            if (frame < 0 or frame > 1023): #frame value range is 0-1023
+                print(f"frame value ({frame}) is out range. Valid range is 0-1023")
+                return -1
+            
+            if (slot < 0 or slot > 19): #slot value range is 0-9
+                print(f"slot value ({slot}) is out range. Valid range is 0-9")
+                return -1
+
+            distance = frame - biggestFrameForCurrentHfn
+            if (distance >= 512):
+                #Previous HFN
+                calctime = ((hfn - 1) * 10240 + frame * 10 + slot - offsetTimestamp) / 1000; #HFN variable should never move backward in time so we do not update the variable
+            
+            else:
+                if (distance > 0):
+                    biggestFrameForCurrentHfn = frame
+                
+                elif (distance <= -512):
+                    #Next HFN due to frame wrap around
+                    hfn += 1
+                    biggestFrameForCurrentHfn = frame
+            
+                calctime = (hfn * 10240 + frame * 10 + slot - offsetTimestamp) / 1000
+            
+            if (calctime == float.MaxValue):
+                calctime /= 10.0; # Log does not have a real timestamp might be due to the measurement being cut. However to avoid a db overflow we divide by 10
+            
+            phyTimeInSecsAndIndexesList.append((calctime, self.phyIndexes[i]))
+        
+        #Sort the list by calculated timestamp in seconds based on HFN, frame, slot
+        phyTimeInSecsAndIndexesList = sorted(phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+
+    
 class IotLog:
-    def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo):
+    def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index):
         self.resulttypeid = int(resulttypeid)
         self.timestamp = int(timestamp)
         self.absolutetime = float(absolutetime)
@@ -62,27 +182,4 @@ class IotLog:
         self.direction = Direction(direction)
         self.message = message
         self.extrainfo = extrainfo
-
-
-def loadIotData(myDb, campaignId):
-    try:
-        print("Loading IoT Data")
-        cursor = myDb.cursor()
-
-        cursor.execute(getIotQuery(campaignId))
-        rows = cursor.fetchall()
-
-        # Process the result set and create instance of IotLogs class
-        iot_logs = IotLogs()
-        for row in rows:
-            iot_logs.addIotLog(IotLog(*row))
-
-        # Close the cursor and connection
-        cursor.close()
-        
-        print("IoT Data loaded correctly")
-        return iot_logs
-
-    except Error as e:
-        print(f"Error: {e}")
-        return -1
+        self.index = index

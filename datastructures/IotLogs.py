@@ -8,13 +8,14 @@ def getIotQuery(CampaignId):
 class IotLogs:
 
     iot_logs = []
+
     phy_indexes = []
-    mac_indexes = []
-    rrc_indexes = []
-    rlc_indexes = []
-    nas_indexes = []
+    phy_sib_indexes = []
+    phy_nonsib_indexes = []
+    non_phy_indexes = []
 
     phyTimeInSecsAndIndexesList = []
+    nonPhyTimeStampsSecs = []
 
     def __init__(self):
         pass
@@ -29,33 +30,16 @@ class IotLogs:
         if iot_log.layer == Layer.PHY:
             self.phy_indexes.append(iot_log.index)
 
-        elif iot_log.layer == Layer.MAC:
-            self.mac_indexes.append(iot_log.index)
+            if iot_log.info == 'PDSCH' and 'harq=si' in iot_log.message:
+                self.phy_sib_indexes.append(iot_log.index)
+            else:
+                self.phy_nonsib_indexes.append(iot_log.index)
+        
+        elif iot_log.layer != Layer.RLC:
+            self.non_phy_indexes.append(iot_log.index)
 
-        elif iot_log.layer == Layer.RRC:
-            self.rrc_indexes.append(iot_log.index)
-
-        elif iot_log.layer == Layer.RLC:
-            self.rlc_indexes.append(iot_log.index)
-
-        elif iot_log.layer == Layer.NAS:
-            self.nas_indexes.append(iot_log.index)
-    
-    def getLayerCount(self, layer):
-        if layer == Layer.PHY:
-            return len(self.phy_indexes)
-
-        elif layer == Layer.MAC:
-            return len(self.mac_indexes)
-
-        elif layer == Layer.RRC:
-            return len(self.rrc_indexes)
-
-        elif layer == Layer.RLC:
-            return len(self.rlc_indexes)
-
-        elif layer == Layer.NAS:
-            return len(self.nas_indexes)
+        else:
+            pass
 
     def loadIotData(self, myDb, campaignId):
         try:
@@ -75,7 +59,7 @@ class IotLogs:
             
             print("IoT Data loaded correctly")
 
-            if self.getLayerCount(layer=Layer.PHY) == 0:
+            if len(self.phy_indexes) == 0:
                 print("No PHY log entries found in the Iot log")
                 return -1
 
@@ -173,6 +157,78 @@ class IotLogs:
         self.phyTimeInSecsAndIndexesList = sorted(self.phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
         return 1
     
+    def sortNonPhyLogEntries(self):
+        
+        for (int i = 0; i < nonPhyIndexes.Count; i++)
+        {
+            int indexOfPhyLayerEquivalentLogEntry = -1;
+            if (tapDbDataIoTLog.direction[nonPhyIndexes[i]] == "UL" && (tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "MAC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "RRC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "NAS"))
+            {
+                //Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
+                for (int u = phyNonSibIndexes.Count() - 1 ; u > 0 ; u--)
+                {
+                    if (nonPhyIndexes[i] > phyNonSibIndexes[u])
+                    {
+                        indexOfPhyLayerEquivalentLogEntry = phyNonSibIndexes[u]; //We do not need to check if PhyNonSibIndexes[0] is bigger than nonPhyIndexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
+                        break; //Break for loop
+                    }
+                }
+                if (indexOfPhyLayerEquivalentLogEntry == -1)
+                {
+                    errorMessage = $"Rogue Non-PHY message detected";
+                    return false;
+                }
+            }
+            else if (tapDbDataIoTLog.direction[nonPhyIndexes[i]] == "DL" && (tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "MAC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "RRC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "NAS"))
+            {
+                //Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
+                if (tapDbDataIoTLog.message[nonPhyIndexes[i]].Contains("SIB") == true)
+                {
+                    for (int u = 0; u < phySibIndexes.Count; u++)
+                    {
+                        if (nonPhyIndexes[i] < phySibIndexes[u])
+                        {
+                            indexOfPhyLayerEquivalentLogEntry = phySibIndexes[u];
+                            break; //Break for loop
+                        }
+                    }
+                }
+                else
+                { 
+                    for (int u = 0; u < phyNonSibIndexes.Count; u++)
+                    {
+                        if (nonPhyIndexes[i] < phyNonSibIndexes[u] && tapDbDataIoTLog.message[phyNonSibIndexes[u]].Contains("dci") == false)
+                        {
+                            indexOfPhyLayerEquivalentLogEntry = phyNonSibIndexes[u];
+                            break; //Break for loop
+                        }
+                    }
+                }
+                if (indexOfPhyLayerEquivalentLogEntry == -1)
+                {
+                    nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(double.MaxValue/10, nonPhyIndexes[i])); //This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
+                    continue;
+                }
+            }
+            else
+            {
+                errorMessage = $"Unknown Non-PHY log entry. Layer=\"{tapDbDataIoTLog.layer[nonPhyIndexes[i]]}\". Direction=\"{tapDbDataIoTLog.direction[nonPhyIndexes[i]]}\"";
+                return false;
+            }
+
+            //nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(-1.0, nonPhyIndexes[i]));
+            for (int u = 0; u < phyTimeInSecsAndIndexesList.Count; u++)
+            {
+                if (phyTimeInSecsAndIndexesList[u].Value == indexOfPhyLayerEquivalentLogEntry) //This will always be true with one of the indexes so we do not need to check if we actually found a match later
+                {
+                    nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(phyTimeInSecsAndIndexesList[u].Key, nonPhyIndexes[i])); 
+                    break; //Break for loop
+                }
+            }
+        }
+        nonPhyTimeStampsSecs = nonPhyTimeStampsSecs.OrderBy(e => e.Key).ToList(); //Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+
+
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index):
         self.resulttypeid = int(resulttypeid)

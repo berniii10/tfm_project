@@ -35,7 +35,7 @@ class IotLogs:
             else:
                 self.phy_nonsib_indexes.append(iot_log.index)
         
-        elif iot_log.layer != Layer.RLC:
+        elif iot_log.layer != Layer.RLC and iot_log.direction != '- ':
             self.non_phy_indexes.append(iot_log.index)
 
         else:
@@ -82,6 +82,14 @@ class IotLogs:
         if found == 0:
             print(f"Could not find IoT PRACH log")
             return found
+
+    def searchSib(self):
+        for iot_log in self.iot_logs:
+            if "sib" in iot_log.message.lower() or "harq=si" in iot_log.message.lower():
+                pass
+            if "sib" in iot_log.extrainfo.lower() or "harq=si" in iot_log.message.lower():
+                pass
+
 
     def findHighestFrameAndSlot(self):
         frame = -1
@@ -159,75 +167,55 @@ class IotLogs:
     
     def sortNonPhyLogEntries(self):
         
-        for (int i = 0; i < nonPhyIndexes.Count; i++)
-        {
-            int indexOfPhyLayerEquivalentLogEntry = -1;
-            if (tapDbDataIoTLog.direction[nonPhyIndexes[i]] == "UL" && (tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "MAC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "RRC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "NAS"))
-            {
-                //Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
-                for (int u = phyNonSibIndexes.Count() - 1 ; u > 0 ; u--)
-                {
-                    if (nonPhyIndexes[i] > phyNonSibIndexes[u])
-                    {
-                        indexOfPhyLayerEquivalentLogEntry = phyNonSibIndexes[u]; //We do not need to check if PhyNonSibIndexes[0] is bigger than nonPhyIndexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
-                        break; //Break for loop
-                    }
-                }
-                if (indexOfPhyLayerEquivalentLogEntry == -1)
-                {
-                    errorMessage = $"Rogue Non-PHY message detected";
-                    return false;
-                }
-            }
-            else if (tapDbDataIoTLog.direction[nonPhyIndexes[i]] == "DL" && (tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "MAC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "RRC" || tapDbDataIoTLog.layer[nonPhyIndexes[i]] == "NAS"))
-            {
-                //Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
-                if (tapDbDataIoTLog.message[nonPhyIndexes[i]].Contains("SIB") == true)
-                {
-                    for (int u = 0; u < phySibIndexes.Count; u++)
-                    {
-                        if (nonPhyIndexes[i] < phySibIndexes[u])
-                        {
-                            indexOfPhyLayerEquivalentLogEntry = phySibIndexes[u];
-                            break; //Break for loop
-                        }
-                    }
-                }
-                else
-                { 
-                    for (int u = 0; u < phyNonSibIndexes.Count; u++)
-                    {
-                        if (nonPhyIndexes[i] < phyNonSibIndexes[u] && tapDbDataIoTLog.message[phyNonSibIndexes[u]].Contains("dci") == false)
-                        {
-                            indexOfPhyLayerEquivalentLogEntry = phyNonSibIndexes[u];
-                            break; //Break for loop
-                        }
-                    }
-                }
-                if (indexOfPhyLayerEquivalentLogEntry == -1)
-                {
-                    nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(double.MaxValue/10, nonPhyIndexes[i])); //This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
-                    continue;
-                }
-            }
-            else
-            {
-                errorMessage = $"Unknown Non-PHY log entry. Layer=\"{tapDbDataIoTLog.layer[nonPhyIndexes[i]]}\". Direction=\"{tapDbDataIoTLog.direction[nonPhyIndexes[i]]}\"";
-                return false;
-            }
+        for i in range (0, len(self.nonPhyIndexes), 1):
+            indexOfPhyLayerEquivalentLogEntry = -1
+            if self.iot_logs[self.nonPhyIndexes[i]].direction == Direction.UL and (self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.MAC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.RRC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.NAS):
+                # Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
+                for u in range(len(self.phyNonSibIndexes-1, 0, -1)):
+                    if (self.nonPhyIndexes[i] > self.phyNonSibIndexes[u]):
 
-            //nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(-1.0, nonPhyIndexes[i]));
-            for (int u = 0; u < phyTimeInSecsAndIndexesList.Count; u++)
-            {
-                if (phyTimeInSecsAndIndexesList[u].Value == indexOfPhyLayerEquivalentLogEntry) //This will always be true with one of the indexes so we do not need to check if we actually found a match later
-                {
-                    nonPhyTimeStampsSecs.Add(new KeyValuePair<double, int>(phyTimeInSecsAndIndexesList[u].Key, nonPhyIndexes[i])); 
-                    break; //Break for loop
-                }
-            }
-        }
-        nonPhyTimeStampsSecs = nonPhyTimeStampsSecs.OrderBy(e => e.Key).ToList(); //Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+                        indexOfPhyLayerEquivalentLogEntry = self.phyNonSibIndexes[u]; # We do not need to check if PhyNonSibIndexes[0] is bigger than nonPhyIndexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
+                        break; # Break for loop
+                    
+                if (indexOfPhyLayerEquivalentLogEntry == -1):
 
+                    print("Rogue Non-PHY message detected")
+                    return -1
+            
+            elif self.iot_logs[self.nonPhyIndexes[i]].direction == Direction.DL and (self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.MAC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.RRC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.NAS):
+            
+                # Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
+                if "SIB" in self.iot_logs[self.nonPhyIndexes[i]].message:
+                    for u in range(0, len(self.phySibIndexes, 1)):
+                        if (self.nonPhyIndexes[i] < self.phySibIndexes[u]):
+
+                            indexOfPhyLayerEquivalentLogEntry = self.phySibIndexes[u]
+                            break; # Break for loop
+                else:
+                    for u in range(0, len(self.phyNonSibIndexes), 1):
+                        if (self.nonPhyIndexes[i] < self.phyNonSibIndexes[u] and "dci" in self.iot_logs[self.phyNonSibIndexes[u]].message):
+                        
+                            indexOfPhyLayerEquivalentLogEntry = self.phyNonSibIndexes[u]
+                            break; # Break for loop
+                        
+                if (indexOfPhyLayerEquivalentLogEntry == -1):
+
+                    self.nonPhyTimeStampsSecs.append((sys.float_info.max/10, self.nonPhyIndexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
+                    continue
+                
+            else:
+                print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.nonPhyIndexes[i]].layer}\". Direction=\"{self.iot_logs[self.nonPhyIndexes[i]].direction}\"")
+                return -1 
+            
+            for u in range(0, len(self.phyTimeInSecsAndIndexesList, 1)):
+                if (self.phyTimeInSecsAndIndexesList[u].Value == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
+                    
+                    self.nonPhyTimeStampsSecs.append((self.phyTimeInSecsAndIndexesList[u][0], self.nonPhyIndexes[i]))
+                    break; # Break for loop
+                
+            
+        self.nonPhyTimeStampsSecs = sorted(self.nonPhyTimeStampsSecs, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+    
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index):

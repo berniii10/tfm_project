@@ -22,6 +22,7 @@ def myMain():
 
     iot_logs.findHighestFrameAndSlot()
     iot_logs.sortPhyLogEntries()
+    iot_logs.searchSib()
         
 
     #if psu_logs.loadPsuData(myDb=myDb, campaignId=170) == -1:

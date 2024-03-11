@@ -2,8 +2,51 @@ import sys
 from psycopg2 import Error
 from datastructures.enums import *
 
-def getIotQuery(CampaignId):
-    return "with testrunCampaign as (select testrun.runid from	testrun inner join testrun2params on testrun.runid = testrun2params.runid inner join params on testrun2params.paramid = params.paramid inner join resultseries on testrun.runid = resultseries.runid inner join resulttype on resulttype.resulttypeid = resultseries.resulttypeid where	testrun.runid in (select distinct testrun.runid	from (select testrun.testrunguid from testrun inner join planrun on planrun.runid = testrun.runid where planrun.planrunnumber = "+str(CampaignId)+" /*CampaignId*/) as guid inner join params on cast(guid.testrunguid as text)= params.value inner join testrun2params on params.paramid = testrun2params.paramid	inner join testrun on testrun.runid = testrun2params.runid where testrun.planrunid is not null) and params.name = 'Verdict'	and params.value = 'Pass' and resulttype.name like 'TX_IoT%') select resulttype.resulttypeid, result.dim0 as \"TimeStamp\",	result.dim2 as \"AbsoluteTime\", result.dim4 as \"RFN\", result.dim5 as \"SFN\",	result.dim6 as \"UE_ID\",	result.dim7 as \"Layer\",	coalesce(nullif(result.dim8,''),'empty') as \"Info\",coalesce(nullif(result.dim9,''),'empty') as \"Direction\",result.dim10 as \"Message\",coalesce(nullif(result.dim11,''),'empty') as \"ExtraInfo\" from (resulttype inner join resultseries on resulttype.resulttypeid = resultseries.resulttypeid inner join result on result.resultseriesid = resultseries.resultseriesid) inner join testrun on testrun.runid = resultseries.runid where testrun.runid in (select * from testrunCampaign) order by result.resultid asc;"
+class CampaignIotLogs:
+    
+    campaign_iot_logs = []
+
+    def __init__(self):
+        pass
+
+    def howManyTestplans(self):
+        return len(self.campaign_iot_logs)
+
+    def loadIotData(self, rows):
+        indexes = {}
+        temp_iot_logs = {}
+
+        for i, row in enumerate(rows):
+
+            resulttypeid = int(row[0])
+            if resulttypeid in indexes:
+                indexes[resulttypeid] += 1
+
+            else:
+                indexes[resulttypeid] = 0
+
+            if resulttypeid in temp_iot_logs:
+                temp_iot_logs[resulttypeid].append(IotLog(*row, indexes[resulttypeid]))
+            else:
+                temp_iot_logs[resulttypeid] = []
+
+        for key in temp_iot_logs:
+            self.campaign_iot_logs.append((temp_iot_logs[key]))
+
+        return 1
+    
+    def searchPrach(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            if campaign_iot_log.searchPrach() == -1:
+                return -1
+            
+    def searchSib(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.searchSib()
+
+    def findHighestFrameAndSlot(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.findHighestFrameAndSlot()
 
 class IotLogs:
 
@@ -14,11 +57,12 @@ class IotLogs:
     phy_nonsib_indexes = []
     non_phy_indexes = []
 
-    phyTimeInSecsAndIndexesList = []
+    phy_time_in_secs_and_indexes_list = []
     nonPhyTimeStampsSecs = []
 
-    def __init__(self):
-        pass
+    def __init__(self, iot_logs=None):
+        if iot_logs != None:
+            self.loadIotData(iot_logs=iot_logs)
     
     def addIotLog(self, iot_log):
 
@@ -35,39 +79,23 @@ class IotLogs:
             else:
                 self.phy_nonsib_indexes.append(iot_log.index)
         
-        elif iot_log.layer != Layer.RLC and iot_log.direction != '- ':
+        elif iot_log.layer != Layer.RLC and iot_log.direction != '- ' and iot_log.layer != Layer.S1AP:
             self.non_phy_indexes.append(iot_log.index)
 
         else:
             pass
 
-    def loadIotData(self, myDb, campaignId):
-        try:
-            print("Loading IoT Data")
-            cursor = myDb.cursor()
+    def loadIotData(self, iot_logs):
 
-            cursor.execute(getIotQuery(campaignId))
-            rows = cursor.fetchall()
-
-            # Process the result set and create instance of IotLogs class
-            
-            for i, row in enumerate(rows):
-                self.addIotLog(IotLog(*row, i))
-
-            # Close the cursor and connection
-            cursor.close()
-            
-            print("IoT Data loaded correctly")
-
-            if len(self.phy_indexes) == 0:
-                print("No PHY log entries found in the Iot log")
-                return -1
-
-            return 1
-
-        except Error as e:
-            print(f"Error: {e}")
+        for iot_log in iot_logs:
+            self.addIotLog(iot_log)
+        
+        if len(self.phy_indexes) == 0:
+            print("No PHY log entries found in the Iot log")
             return -1
+
+        print("IoT Data loaded correctly")
+        return 1
 
     def searchPrach(self):
         found = -1
@@ -79,7 +107,7 @@ class IotLogs:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
                 return found
 
-        if found == 0:
+        if found == -1:
             print(f"Could not find IoT PRACH log")
             return found
 
@@ -89,7 +117,6 @@ class IotLogs:
                 pass
             if "sib" in iot_log.extrainfo.lower() or "harq=si" in iot_log.message.lower():
                 pass
-
 
     def findHighestFrameAndSlot(self):
         frame = -1
@@ -102,7 +129,7 @@ class IotLogs:
             if slot < iot_log.slot:
                 slot = iot_log.slot
 
-        print(f"Biggest Frame: {frame}. Biggest Slot: {slot}")
+        print(f"Result Type ID: {self.iot_logs[0].resulttypeid}. Biggest Frame: {frame}. Biggest Slot: {slot}")
 
     #Now sort the Phy log entries using FRAME and slot and at the same time keep track of the HFN which increases every time FRAME wraps around.
     #Important note: the log entries are not sorted - they can vary several milliseconds. Example: log_entry1=time10, log_entry2=time8, log_entry3=time12
@@ -159,22 +186,22 @@ class IotLogs:
             if (calctime == sys.float_info.max):
                 calctime /= 10.0; # Log does not have a real timestamp might be due to the measurement being cut. However to avoid a db overflow we divide by 10
             
-            self.phyTimeInSecsAndIndexesList.append((calctime, self.phy_indexes[i]))
+            self.phy_time_in_secs_and_indexes_list.append((calctime, self.phy_indexes[i]))
         
         #Sort the list by calculated timestamp in seconds based on HFN, frame, slot
-        self.phyTimeInSecsAndIndexesList = sorted(self.phyTimeInSecsAndIndexesList, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+        self.phy_time_in_secs_and_indexes_list = sorted(self.phy_time_in_secs_and_indexes_list, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
         return 1
     
     def sortNonPhyLogEntries(self):
         
-        for i in range (0, len(self.nonPhyIndexes), 1):
+        for i in range (0, len(self.non_phy_indexes), 1):
             indexOfPhyLayerEquivalentLogEntry = -1
-            if self.iot_logs[self.nonPhyIndexes[i]].direction == Direction.UL and (self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.MAC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.RRC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.NAS):
-                # Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
+            if self.iot_logs[self.non_phy_indexes[i]].direction == Direction.UL and (self.iot_logs[self.non_phy_indexes[i]].layer == Layer.MAC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.RRC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.NAS):
+                # Find the max index value in PhyNonSibIndexes that are still less than non_phy_indexes[i]
                 for u in range(len(self.phyNonSibIndexes-1, 0, -1)):
-                    if (self.nonPhyIndexes[i] > self.phyNonSibIndexes[u]):
+                    if (self.non_phy_indexes[i] > self.phyNonSibIndexes[u]):
 
-                        indexOfPhyLayerEquivalentLogEntry = self.phyNonSibIndexes[u]; # We do not need to check if PhyNonSibIndexes[0] is bigger than nonPhyIndexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
+                        indexOfPhyLayerEquivalentLogEntry = self.phyNonSibIndexes[u]; # We do not need to check if PhyNonSibIndexes[0] is bigger than non_phy_indexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
                         break; # Break for loop
                     
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
@@ -182,39 +209,39 @@ class IotLogs:
                     print("Rogue Non-PHY message detected")
                     return -1
             
-            elif self.iot_logs[self.nonPhyIndexes[i]].direction == Direction.DL and (self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.MAC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.RRC or self.iot_logs[self.nonPhyIndexes[i]].layer == Layer.NAS):
+            elif self.iot_logs[self.non_phy_indexes[i]].direction == Direction.DL and (self.iot_logs[self.non_phy_indexes[i]].layer == Layer.MAC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.RRC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.NAS):
             
-                # Find the max index value in PhyNonSibIndexes that are still less than nonPhyIndexes[i]
-                if "SIB" in self.iot_logs[self.nonPhyIndexes[i]].message:
-                    for u in range(0, len(self.phySibIndexes, 1)):
-                        if (self.nonPhyIndexes[i] < self.phySibIndexes[u]):
+                # Find the max index value in PhyNonSibIndexes that are still less than non_phy_indexes[i]
+                if "SIB" in self.iot_logs[self.non_phy_indexes[i]].message:
+                    for u in range(0, len(self.phy_sib_indexes), 1):
+                        if (self.non_phy_indexes[i] < self.phy_sib_indexes[u]):
 
-                            indexOfPhyLayerEquivalentLogEntry = self.phySibIndexes[u]
+                            indexOfPhyLayerEquivalentLogEntry = self.phy_sib_indexes[u]
                             break; # Break for loop
                 else:
                     for u in range(0, len(self.phyNonSibIndexes), 1):
-                        if (self.nonPhyIndexes[i] < self.phyNonSibIndexes[u] and "dci" in self.iot_logs[self.phyNonSibIndexes[u]].message):
+                        if (self.non_phy_indexes[i] < self.phyNonSibIndexes[u] and "dci" in self.iot_logs[self.phyNonSibIndexes[u]].message):
                         
                             indexOfPhyLayerEquivalentLogEntry = self.phyNonSibIndexes[u]
                             break; # Break for loop
                         
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
-                    self.nonPhyTimeStampsSecs.append((sys.float_info.max/10, self.nonPhyIndexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
+                    self.nonPhyTimeStampsSecs.append((sys.float_info.max/10, self.non_phy_indexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
                     continue
                 
             else:
-                print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.nonPhyIndexes[i]].layer}\". Direction=\"{self.iot_logs[self.nonPhyIndexes[i]].direction}\"")
+                print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.non_phy_indexes[i]].layer}\". Direction=\"{self.iot_logs[self.non_phy_indexes[i]].direction}\"")
                 return -1 
             
-            for u in range(0, len(self.phyTimeInSecsAndIndexesList, 1)):
-                if (self.phyTimeInSecsAndIndexesList[u].Value == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
+            for u in range(0, len(self.phy_time_in_secs_and_indexes_list), 1):
+                if (self.phy_time_in_secs_and_indexes_list[u][1] == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
                     
-                    self.nonPhyTimeStampsSecs.append((self.phyTimeInSecsAndIndexesList[u][0], self.nonPhyIndexes[i]))
+                    self.nonPhyTimeStampsSecs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
                     break; # Break for loop
                 
             
-        self.nonPhyTimeStampsSecs = sorted(self.nonPhyTimeStampsSecs, key=lambda x: x[0]) #Could also include the .Value like: phyTimeInSecsAndIndexesList.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+        self.nonPhyTimeStampsSecs = sorted(self.nonPhyTimeStampsSecs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
     
 
 class IotLog:

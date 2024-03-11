@@ -6,6 +6,7 @@ class Layer(Enum):
     RRC = "RRC"
     NAS = "NAS"
     RLC = "RLC"
+    S1AP = "S1AP"
 
 class Direction(Enum):
     UL = "UL"

@@ -16,7 +16,7 @@ def myMain():
         return -1
     
     campaign_iot_logs.findHighestFrameAndSlot()
-    
+
     campaign_iot_logs.sortPhyLogEntries()
     campaign_iot_logs.sortNonPhyLogEntries()
     
@@ -61,7 +61,7 @@ def myMain():
     #psu_logs.calculateTimePsuAndPower()
 
 
-    psuRawPlot(psu_logs=psu_logs)
+    #psuRawPlot(psu_logs=psu_logs)
 
 if __name__ == "__main__":
     myMain()

@@ -72,6 +72,11 @@ class IotLogs:
     phy_time_in_secs_and_indexes_list = []
     nonPhyTimeStampsSecs = []
 
+    psu_max = 0
+    mcs_index = 0
+    mimo = 1
+    bw = 0
+
     def __init__(self, iot_logs=None):
         if iot_logs != None:
             self.loadIotData(iot_logs=iot_logs)

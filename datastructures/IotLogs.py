@@ -2,6 +2,7 @@ import sys
 from psycopg2 import Error
 from datastructures.enums import *
 
+
 class CampaignIotLogs:
     
     campaign_iot_logs = []
@@ -30,8 +31,10 @@ class CampaignIotLogs:
             else:
                 temp_iot_logs[resulttypeid] = []
 
-        for key in temp_iot_logs:
-            self.campaign_iot_logs.append((temp_iot_logs[key]))
+        self.campaign_iot_logs  = [IotLogs() for i in range(len(temp_iot_logs))]
+
+        for i, key in enumerate(temp_iot_logs):
+            self.campaign_iot_logs[i].loadIotData(temp_iot_logs[key])
 
         return 1
     
@@ -47,6 +50,15 @@ class CampaignIotLogs:
     def findHighestFrameAndSlot(self):
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.findHighestFrameAndSlot()
+
+    def sortPhyLogEntries(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.sortPhyLogEntries()
+
+    def sortNonPhyLogEntries(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.sortNonPhyLogEntries()
+
 
 class IotLogs:
 

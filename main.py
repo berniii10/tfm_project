@@ -17,6 +17,9 @@ def myMain():
     
     campaign_iot_logs.findHighestFrameAndSlot()
     
+    campaign_iot_logs.sortPhyLogEntries()
+    campaign_iot_logs.sortNonPhyLogEntries()
+    
 
     #iot_logs = IotLogs()
     

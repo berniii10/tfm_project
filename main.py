@@ -1,17 +1,19 @@
 import database.DbConnection as DbConnection
-from datastructures.IotLogs import IotLogs, CampaignIotLogs
-from datastructures.PsuLog import PsuLogs
+from datastructures.IotLogs import CampaignIotLogs
+from datastructures.PsuLog import CampaignPsuLogs
 from datastructures.enums import Layer
 from view.common import *
 
 def myMain():
     myDb = DbConnection.connectToDb()
+
+    #IoT
     iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=186, iot_psu=1)
 
     campaign_iot_logs = CampaignIotLogs()
     campaign_iot_logs.loadIotData(iot_rows)
 
-    print(campaign_iot_logs.howManyTestplans())
+    # print("Testplans in the campaign: ",campaign_iot_logs.howManyTestplans())
     if campaign_iot_logs.searchPrach() == -1:
         return -1
     
@@ -19,8 +21,19 @@ def myMain():
 
     campaign_iot_logs.sortPhyLogEntries()
     campaign_iot_logs.sortNonPhyLogEntries()
-    
+    campaign_iot_logs.getPsuMax()
 
+
+    # PSU
+    psu_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=186, iot_psu=0)
+    campaign_psu_logs = CampaignPsuLogs()
+    campaign_psu_logs.loadData(psu_rows)
+    
+    if campaign_psu_logs.searchVoltageSpike() == -1:
+        return -1
+    
+    campaign_psu_logs.calculateTimePsuAndPower()
+    return 1
     #iot_logs = IotLogs()
     
     #iot_logs = IotLogs()

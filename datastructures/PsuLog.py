@@ -1,40 +1,70 @@
 from psycopg2 import Error
 from database.DbConnection import *
-class PsuLogs:
-    
-    psu_time_offset = 0
-    voltage = 5
-    psu_logs = []
+
+class CampaignPsuLogs:
 
     def __init__(self):
-        pass
+        self.campaign_psu_logs = []
+
+    def howManyTestPlans(self):
+        return len(self.psu_logs)
+    
+    def loadData(self, rows):
+        indexes = {}
+        temp_psu_logs = {}
+
+        for i, row in enumerate(rows):
+
+            resulttypeid = int(row[0])
+            if resulttypeid in indexes:
+                indexes[resulttypeid] += 1
+
+            else:
+                indexes[resulttypeid] = 0
+
+            if resulttypeid in temp_psu_logs:
+                temp_psu_logs[resulttypeid].append(PsuLog(*row))
+            else:
+                temp_psu_logs[resulttypeid] = []
+
+        self.campaign_psu_logs  = [PsuLogs() for i in range(len(temp_psu_logs))]
+
+        for i, key in enumerate(temp_psu_logs):
+            self.campaign_psu_logs[i].loadPsuData(temp_psu_logs[key])
+
+        return 1
+
+    def searchVoltageSpike(self):
+        for campaign_psu_log in self.campaign_psu_logs:
+            if campaign_psu_log.searchVoltageSpike() == -1:
+                return -1
+
+    def calculateTimePsuAndPower(self):
+        for campaign_psu_log in self.campaign_psu_logs:
+            campaign_psu_log.calculateTimePsuAndPower()
+
+    def findTwoMaxValues(self):
+        for campaign_psu_log in self.campaign_psu_logs:
+            campaign_psu_log.findTwoMaxValues()
+
+class PsuLogs:
+    
+    def __init__(self):
+        self.psu_time_offset = 0
+        self.voltage = 5
+        self.psu_logs = []
 
     def addPsuLog(self, psu_log):
         self.psu_logs.append(psu_log)
 
-    def loadPsuData(self, myDb, campaignId):
-        print("Loading PSU Data")
-        try:
-            cursor = myDb.cursor()
+    def loadPsuData(self, psu_logs):
+        for psu_log in psu_logs:
+            self.addPsuLog(psu_log)
 
-            cursor.execute(getPsuQuery(campaignId))
-            rows = cursor.fetchall()
+        print("Psu Data loaded correctly")
+        return 1
 
-            # Process the result set and create instances of PsuLog class
-            for row in rows:
-                self.addPsuLog(PsuLog(*row))
-
-            # Close the cursor and connection
-            cursor.close()
-
-            print("PSU Data loaded correctly")
-            return 1
-
-        except Error as e:
-            print(f"Error: {e}")
-            return -1
-
-    def searchVoltageSPike(self):
+    def searchVoltageSpike(self):
         found = -1
         for psu_log in self.psu_logs:
             if psu_log.volts > 1:
@@ -59,7 +89,7 @@ class PsuLogs:
             elif max2 > psu_log.volts:
                 max2 = psu_log.volts
 
-        print(f"Maximum: {max1} and Maximum2: {max2}")
+        print(f"Result Type ID: {self.psu_logs[0].resulttypeid} Maximum: {max1} and Maximum2: {max2}")
 
 class PsuLog:
     

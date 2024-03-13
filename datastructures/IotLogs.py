@@ -68,6 +68,14 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getMcs()
 
+    def getMimo(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getMimo()
+
+    def getFrequencyBand(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getFrequencyBand()
+
 class IotLogs:
 
     def __init__(self, iot_logs=None):
@@ -84,8 +92,10 @@ class IotLogs:
 
         self.p_max = 0
         self.mcs_index = 0
+        self.mcs_table = ''
         self.mimo = 1
         self.bw = 0
+        self.freq_band = 0
 
         if iot_logs != None:
             self.loadIotData(iot_logs=iot_logs)
@@ -370,20 +380,56 @@ class IotLogs:
         print(f"Result Type ID: {self.iot_logs[0].resulttypeid}. Biggest Frame: {frame}. Biggest Slot: {slot}")
 
     def getMcs(self):
-        pattern = r'mcs=(\d+)'
+        pattern1 = r'mcs=(\d+)'
+        pattern2 = r'mcs-Table\s+([^\s,]+),'
+        found1 = 0
+        found2 = 0
 
         for i, iot_log in enumerate(self.iot_logs):
 
-            if iot_log.layer == Layer.NAS and 'Registration request' in iot_log.message:
+            if iot_log.layer == Layer.NAS and 'Registration request' in iot_log.message and found1 == 0:
                 for j in range(i, i+100, 1):
 
                     if self.iot_logs[j].info == 'PDCCH' and self.iot_logs[j].layer == Layer.PHY and 'dci=0_' in self.iot_logs[j].extrainfo:
-                        mcs = re.search(pattern, self.iot_logs[j].extrainfo)
+                        mcs = re.search(pattern1, self.iot_logs[j].extrainfo)
 
                         if mcs:
                             self.mcs_index = int(mcs.group(1))
-                            return 1
+                            found1 = 1
+                        
 
+            if iot_log.layer == Layer.RRC and 'RRC reconfiguration' in iot_log.message and found2 == 0:
+                mcs = re.search(pattern2, iot_log.extrainfo)
+
+                if mcs:
+                    self.mcs_table = mcs.group(1)
+                    found2 = 1
+
+    def getMimo(self):
+        pattern1 = r'maxMIMO-Layers\s+(\d+)'
+
+        for iot_log in self.iot_logs:
+
+            if iot_log.layer == Layer.RRC and 'RRC reconfiguration' in iot_log.message:
+                mimo = re.search(pattern1, iot_log.extrainfo)
+
+                if mimo:
+                    self.mimo = mimo.group(1)
+                    return 1
+
+    def getFrequencyBand(self):
+        pattern = r'freqBandIndicatorNR\s+(\d+)'
+        freq_band = -50
+
+        for iot_log in self.iot_logs:
+            if 'SIB1' in iot_log.message:
+                freq_band = re.search(pattern, iot_log.extrainfo)
+                if freq_band != -50:
+                    self.freq_band = int(freq_band.group(1))
+                    return 1
+                
+        print("Could not find any P Max value")
+        return -1
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

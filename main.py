@@ -26,6 +26,8 @@ def myMain():
     campaign_iot_logs.findHighestFrameAndSlot()
     campaign_iot_logs.getPsuMax()
     campaign_iot_logs.getMcs()
+    campaign_iot_logs.getMimo()
+    campaign_iot_logs.getFrequencyBand()
 
 
     # PSU

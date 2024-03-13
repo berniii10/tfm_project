@@ -33,6 +33,7 @@ class CampaignIotLogs:
                 temp_iot_logs[resulttypeid].append(IotLog(*row, indexes[resulttypeid]))
 
         self.campaign_iot_logs = [IotLogs(iot_logs=temp_iot_logs[key]) for key in temp_iot_logs]
+        print("IoT Data loaded correctly")
         return 1
     
     def searchPrach(self):
@@ -59,6 +60,9 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getPsuMax()
 
+    def cleanData(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.cleanData()
 
 class IotLogs:
 
@@ -72,7 +76,7 @@ class IotLogs:
         self.non_phy_indexes = []
 
         self.phy_time_in_secs_and_indexes_list = []
-        self.nonPhyTimeStampsSecs = []
+        self.non_phy_time_stamps_secs = []
 
         self.p_max = 0
         self.mcs_index = 0
@@ -112,7 +116,6 @@ class IotLogs:
             print("No PHY log entries found in the Iot log")
             return -1
 
-        print("IoT Data loaded correctly")
         return 1
 
     def searchPrach(self):
@@ -120,7 +123,7 @@ class IotLogs:
         for i, iot_log in enumerate(self.iot_logs):
             if iot_log.info == 'PRACH':
                 found = 1
-                print(i)
+                print(f"PRACH found at index {i}")
                 return found
             elif iot_log.direction == Direction:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
@@ -217,8 +220,7 @@ class IotLogs:
         
         for i in range (0, len(self.non_phy_indexes), 1):
             indexOfPhyLayerEquivalentLogEntry = -1
-            # print(self.iot_logs[self.non_phy_indexes[i]].direction)
-            # print(self.iot_logs[self.non_phy_indexes[i]].layer)
+            
             if self.iot_logs[self.non_phy_indexes[i]].direction == Direction.UL and (self.iot_logs[self.non_phy_indexes[i]].layer == Layer.MAC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.RRC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
                 for u in range(len(self.phy_nonsib_indexes)-1, 0, -1):
@@ -250,9 +252,9 @@ class IotLogs:
                         
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
-                    self.nonPhyTimeStampsSecs.append((sys.float_info.max/10, self.non_phy_indexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
+                    self.non_phy_time_stamps_secs.append((sys.float_info.max/10, self.non_phy_indexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
                     continue
-                
+            
             else:
                 print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.non_phy_indexes[i]].layer}\". Direction=\"{self.iot_logs[self.non_phy_indexes[i]].direction}\"")
                 return -1 
@@ -260,11 +262,11 @@ class IotLogs:
             for u in range(0, len(self.phy_time_in_secs_and_indexes_list), 1):
                 if (self.phy_time_in_secs_and_indexes_list[u][1] == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
                     
-                    self.nonPhyTimeStampsSecs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
+                    self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
                     break; # Break for loop
-                
             
-        self.nonPhyTimeStampsSecs = sorted(self.nonPhyTimeStampsSecs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+            
+        self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
     
     def getPsuMax(self):
         pattern = r'p-Max\s+(\d+)'
@@ -280,8 +282,92 @@ class IotLogs:
         print("Could not find any P Max value")
         return -1
 
+    def cleanData(self):
+        tmp_clean_sorted_timestamped_data = []
+
+        cleanedSortedAndTimestampedIndex = 0
+        phyIndex = 0
+        nonPhyIndex = 0
+
+        while phyIndex < len(self.phy_time_in_secs_and_indexes_list) and nonPhyIndex < len(self.non_phy_indexes):
+            if (self.phy_time_in_secs_and_indexes_list[phyIndex][0] == self.non_phy_time_stamps_secs[nonPhyIndex][0] and self.iot_logs[self.non_phy_time_stamps_secs[nonPhyIndex][1]].direction == Direction.UL) or self.phy_time_in_secs_and_indexes_list[phyIndex][0] < self.non_phy_time_stamps_secs[nonPhyIndex][0]:
+                tmp_clean_sorted_timestamped_data.append(IotLog(self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].resulttypeid,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].timestamp,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].absolutetime,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].frame,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].slot,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].ue_id,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].layer,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].info,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].direction,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].message,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].extrainfo,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].index,
+                                                                self.phy_time_in_secs_and_indexes_list[phyIndex][0]))
+                cleanedSortedAndTimestampedIndex += 1
+                phyIndex += 1
+            
+            elif (self.phy_time_in_secs_and_indexes_list[phyIndex][0] == self.non_phy_time_stamps_secs[nonPhyIndex][0] and self.iot_logs[self.non_phy_time_stamps_secs[nonPhyIndex][1]].direction == Direction.DL) or self.phy_time_in_secs_and_indexes_list[phyIndex][0] > self.non_phy_time_stamps_secs[nonPhyIndex][0]:
+                tmp_clean_sorted_timestamped_data.append(IotLog(self.iot_logs[self.non_phy_indexes[nonPhyIndex]].resulttypeid,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].timestamp,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].absolutetime,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].frame,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].slot,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].ue_id,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].layer,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].info,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].direction,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].message,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].extrainfo,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].index,
+                                                                self.non_phy_time_stamps_secs[nonPhyIndex][0]))
+                cleanedSortedAndTimestampedIndex += 1
+                nonPhyIndex += 1
+
+                
+        while phyIndex < len(self.phy_time_in_secs_and_indexes_list) :
+            tmp_clean_sorted_timestamped_data.append(IotLog(self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].resulttypeid,                    ## Can't we change this for <or> in previous loop instead or <and>?
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].timestamp,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].absolutetime,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].frame,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].slot,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].ue_id,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].layer,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].info,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].direction,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].message,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].extrainfo,
+                                                                self.iot_logs[self.phy_time_in_secs_and_indexes_list[phyIndex][1]].index,
+                                                                self.phy_time_in_secs_and_indexes_list[phyIndex][0]))
+            cleanedSortedAndTimestampedIndex += 1
+            phyIndex += 1
+        
+        # Copy the rest from nonPhyIndexes if not done in previous loop
+        while nonPhyIndex < len(self.non_phy_indexes):
+            if (self.non_phy_time_stamps_secs[nonPhyIndex][0] == sys.float_info.max):
+                continue; # Log does not have a real timestamp might be due to the measurement being cut
+            
+            tmp_clean_sorted_timestamped_data.append(IotLog(self.iot_logs[self.non_phy_indexes[nonPhyIndex]].resulttypeid,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].timestamp,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].absolutetime,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].frame,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].slot,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].ue_id,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].layer,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].info,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].direction,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].message,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].extrainfo,
+                                                                self.iot_logs[self.non_phy_indexes[nonPhyIndex]].index,
+                                                                self.non_phy_time_stamps_secs[nonPhyIndex][0]))
+            cleanedSortedAndTimestampedIndex += 1
+            nonPhyIndex += 1
+
+        self.iot_logs = tmp_clean_sorted_timestamped_data
+        
+
 class IotLog:
-    def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index):
+    def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
         self.resulttypeid = int(resulttypeid)
         self.timestamp = int(timestamp)
         self.absolutetime = float(absolutetime)
@@ -294,4 +380,7 @@ class IotLog:
         self.message = message
         self.extrainfo = extrainfo
         self.index = index
-        self.timeIot = 0.0
+        if timeIot != None:
+            self.timeIot = timeIot
+        else:
+            self.timeIot = 0.0

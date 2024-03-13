@@ -64,6 +64,10 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.cleanData()
 
+    def getMcs(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getMcs()
+
 class IotLogs:
 
     def __init__(self, iot_logs=None):
@@ -117,41 +121,6 @@ class IotLogs:
             return -1
 
         return 1
-
-    def searchPrach(self):
-        found = -1
-        for i, iot_log in enumerate(self.iot_logs):
-            if iot_log.info == 'PRACH':
-                found = 1
-                print(f"PRACH found at index {i}")
-                return found
-            elif iot_log.direction == Direction:
-                print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
-                return found
-
-        if found == -1:
-            print(f"Could not find IoT PRACH log")
-            return found
-
-    def searchSib(self):
-        for iot_log in self.iot_logs:
-            if "sib" in iot_log.message.lower() or "harq=si" in iot_log.message.lower():
-                pass
-            if "sib" in iot_log.extrainfo.lower() or "harq=si" in iot_log.message.lower():
-                pass
-
-    def findHighestFrameAndSlot(self):
-        frame = -1
-        slot = -1
-        for iot_log in self.iot_logs:
-
-            if frame < iot_log.frame:
-                frame = iot_log.frame
-
-            if slot < iot_log.slot:
-                slot = iot_log.slot
-
-        print(f"Result Type ID: {self.iot_logs[0].resulttypeid}. Biggest Frame: {frame}. Biggest Slot: {slot}")
 
     #Now sort the Phy log entries using FRAME and slot and at the same time keep track of the HFN which increases every time FRAME wraps around.
     #Important note: the log entries are not sorted - they can vary several milliseconds. Example: log_entry1=time10, log_entry2=time8, log_entry3=time12
@@ -267,20 +236,6 @@ class IotLogs:
             
             
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
-    
-    def getPsuMax(self):
-        pattern = r'p-Max\s+(\d+)'
-        pmax = -50
-
-        for iot_log in self.iot_logs:
-            if 'SIB1' in iot_log.message:
-                pmax = re.search(pattern, iot_log.extrainfo)
-                if pmax != -50:
-                    self.p_max = pmax.group(1)
-                    return 1
-                
-        print("Could not find any P Max value")
-        return -1
 
     def cleanData(self):
         tmp_clean_sorted_timestamped_data = []
@@ -365,6 +320,70 @@ class IotLogs:
 
         self.iot_logs = tmp_clean_sorted_timestamped_data
         
+    def getPsuMax(self):
+        pattern = r'p-Max\s+(\d+)'
+        pmax = -50
+
+        for iot_log in self.iot_logs:
+            if 'SIB1' in iot_log.message:
+                pmax = re.search(pattern, iot_log.extrainfo)
+                if pmax != -50:
+                    self.p_max = pmax.group(1)
+                    return 1
+                
+        print("Could not find any P Max value")
+        return -1
+
+    def searchPrach(self):
+        found = -1
+        for i, iot_log in enumerate(self.iot_logs):
+            if iot_log.info == 'PRACH':
+                found = 1
+                print(f"PRACH found at index {i}")
+                return found
+            elif iot_log.direction == Direction:
+                print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
+                return found
+
+        if found == -1:
+            print(f"Could not find IoT PRACH log")
+            return found
+
+    def searchSib(self):
+        for iot_log in self.iot_logs:
+            if "sib" in iot_log.message.lower() or "harq=si" in iot_log.message.lower():
+                pass
+            if "sib" in iot_log.extrainfo.lower() or "harq=si" in iot_log.message.lower():
+                pass
+
+    def findHighestFrameAndSlot(self):
+        frame = -1
+        slot = -1
+        for iot_log in self.iot_logs:
+
+            if frame < iot_log.frame:
+                frame = iot_log.frame
+
+            if slot < iot_log.slot:
+                slot = iot_log.slot
+
+        print(f"Result Type ID: {self.iot_logs[0].resulttypeid}. Biggest Frame: {frame}. Biggest Slot: {slot}")
+
+    def getMcs(self):
+        pattern = r'mcs=(\d+)'
+
+        for i, iot_log in enumerate(self.iot_logs):
+
+            if iot_log.layer == Layer.NAS and 'Registration request' in iot_log.message:
+                for j in range(i, i+100, 1):
+
+                    if self.iot_logs[j].info == 'PDCCH' and self.iot_logs[j].layer == Layer.PHY and 'dci=0_' in self.iot_logs[j].extrainfo:
+                        mcs = re.search(pattern, self.iot_logs[j].extrainfo)
+
+                        if mcs:
+                            self.mcs_index = int(mcs.group(1))
+                            return 1
+
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

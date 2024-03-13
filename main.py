@@ -15,16 +15,17 @@ def myMain():
     campaign_iot_logs = CampaignIotLogs()
     campaign_iot_logs.loadIotData(iot_rows)
 
+    campaign_iot_logs.sortPhyLogEntries()
+    campaign_iot_logs.sortNonPhyLogEntries()
+    campaign_iot_logs.cleanData()
+
     # print("Testplans in the campaign: ",campaign_iot_logs.howManyTestplans())
     if campaign_iot_logs.searchPrach() == -1:
         return -1
     
     campaign_iot_logs.findHighestFrameAndSlot()
-
-    campaign_iot_logs.sortPhyLogEntries()
-    campaign_iot_logs.sortNonPhyLogEntries()
     campaign_iot_logs.getPsuMax()
-    campaign_iot_logs.cleanData()
+    campaign_iot_logs.getMcs()
 
 
     # PSU
@@ -36,6 +37,7 @@ def myMain():
         return -1
     
     campaign_psu_logs.calculateTimePsuAndPower()
+    campaign_psu_logs.findTwoMaxValues()
     return 1
     #iot_logs = IotLogs()
     

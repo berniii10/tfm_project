@@ -40,6 +40,10 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.searchPrach()
             
+    def updateTimeStamp(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.updateTimeStamp()    
+    
     def searchSib(self):
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.searchSib()
@@ -93,6 +97,8 @@ class IotLogs:
 
         self.phy_time_in_secs_and_indexes_list = []
         self.non_phy_time_stamps_secs = []
+
+        self.prach_index = 0
 
         self.p_max = 0
         self.mcs_index = 0
@@ -353,7 +359,8 @@ class IotLogs:
         for i, iot_log in enumerate(self.iot_logs):
             if iot_log.info == 'PRACH':
                 found = 1
-                print(f"PRACH found at index {i}")
+                print(f"PRACH found at index {i} and time stamp {iot_log.timeIot}")
+                self.prach_index = i
                 return found
             elif iot_log.direction == Direction:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
@@ -362,6 +369,11 @@ class IotLogs:
         if found == -1:
             print(f"Could not find IoT PRACH log")
             return found
+        
+    def updateTimeStamp(self):
+        time = self.iot_logs[self.prach_index].timeIot
+        for i, iot_log in enumerate(self.iot_logs):
+            iot_log.timeIot = iot_log.timeIot - time
 
     def searchSib(self):
         for iot_log in self.iot_logs:

@@ -13,6 +13,13 @@ class Direction(Enum):
     DL = "DL"
     NA = "- "
 
+class Channel(Enum):
+    PUSCH = "PUSCH"
+    PUCCH = "PDCCH"
+    PRACH = "PRACH"
+    PDSCH = "PDSCH"
+    PDCCH = "PDCCH"
+
 class MessagesRrc(Enum):
     RRC_setup_request = " RRC setup request"
     RRC_setup = "RRC setup"

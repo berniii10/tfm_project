@@ -92,9 +92,6 @@ class PsuLogs:
         print(f"Result Type ID: {self.psu_logs[0].resulttypeid} Maximum: {max1} and Maximum2: {max2}")
 
 class PsuLog:
-    
-    time_psu = 0
-    power = 0
 
     def __init__(self, resulttypeid, starttime, amperes, volts, origin):
         self.resulttypeid = int(resulttypeid)
@@ -102,3 +99,6 @@ class PsuLog:
         self.amperes = float(amperes)
         self.volts = float(volts)
         self.origin = float(origin)
+
+        time_psu = 0
+        power = 0

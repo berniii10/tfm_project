@@ -23,6 +23,8 @@ def myMain():
     if campaign_iot_logs.searchPrach() == -1:
         return -1
     
+    campaign_iot_logs.updateTimeStamp()
+    campaign_iot_logs.searchPrach()
     campaign_iot_logs.findHighestFrameAndSlot()
     campaign_iot_logs.getPsuMax()
     campaign_iot_logs.getMcs()
@@ -42,7 +44,7 @@ def myMain():
     campaign_psu_logs.calculateTimePsuAndPower()
     campaign_psu_logs.findTwoMaxValues()
 
-    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=0, y_max=5)
+    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[1].psu_logs, y_min=-0.5, y_max=2)
     
     return 1
 

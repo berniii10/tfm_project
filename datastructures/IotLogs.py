@@ -76,6 +76,10 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getFrequencyBand()
 
+    def getAllNas(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getAllNas()
+
 class IotLogs:
 
     def __init__(self, iot_logs=None):
@@ -335,7 +339,7 @@ class IotLogs:
         pmax = -50
 
         for iot_log in self.iot_logs:
-            if 'SIB1' in iot_log.message:
+            if MessagesRrc.SIB1.value in iot_log.message:
                 pmax = re.search(pattern, iot_log.extrainfo)
                 if pmax != -50:
                     self.p_max = pmax.group(1)
@@ -422,7 +426,7 @@ class IotLogs:
         freq_band = -50
 
         for iot_log in self.iot_logs:
-            if 'SIB1' in iot_log.message:
+            if MessagesRrc.SIB1.value in iot_log.message:
                 freq_band = re.search(pattern, iot_log.extrainfo)
                 if freq_band != -50:
                     self.freq_band = int(freq_band.group(1))
@@ -430,6 +434,12 @@ class IotLogs:
                 
         print("Could not find any P Max value")
         return -1
+    
+    def getAllNas(self):
+
+        for iot_log in self.iot_logs:
+            if iot_log.layer == Layer.NAS:
+                print(iot_log.message)
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

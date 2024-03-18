@@ -2,12 +2,13 @@ import matplotlib.pyplot as plt
 
 def simplePlot(x_values, y_values, x_label, y_label, plot_title):
     # Create a line plot
-    plt.plot(x_values, y_values, label='Sample Line')
+    plt.scatter(x_values, y_values, label='Power Samples', s=0.5, zorder=2)
 
     # Add labels and title
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(plot_title)
+    plt.grid(True, zorder=1)
 
     # Add a legend
     plt.legend()
@@ -16,21 +17,17 @@ def simplePlot(x_values, y_values, x_label, y_label, plot_title):
     plt.show()
     plt.show(block=True)
 
-def psuRawPlot(psu_logs):
-    volts = []
-    amperes = []
+def psuRawPlot(psu_logs, y_min=None, y_max=None):
     time = []
+    power = []
 
     for index, psu_log in enumerate(psu_logs):
-
-        if index % 5 == 0:
-            continue
         
-        amperes.append(psu_log.amperes)
-        volts.append(psu_log.volts)
-        time.append(psu_log.starttime)
+        if psu_log.starttime > y_min and psu_log.starttime < y_max:
+            power.append(psu_log.power)
+            time.append(psu_log.starttime)
 
         #if (psu_log.starttime > 10):
         #    break
     
-    simplePlot(time, amperes, "Time", "Amperes", "Raw PSU Plot")
+    simplePlot(time, power, "Time [s]", "Power [mW]", "Raw PSU Plot")

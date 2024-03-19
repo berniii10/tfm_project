@@ -19,18 +19,17 @@ def myMain():
     campaign_iot_logs.sortNonPhyLogEntries()
     campaign_iot_logs.cleanData()
 
-    # print("Testplans in the campaign: ",campaign_iot_logs.howManyTestplans())
     if campaign_iot_logs.searchPrach() == -1:
         return -1
-    
     campaign_iot_logs.updateTimeStamp()
-    campaign_iot_logs.searchPrach()
+
     campaign_iot_logs.findHighestFrameAndSlot()
     campaign_iot_logs.getPsuMax()
     campaign_iot_logs.getMcs()
     campaign_iot_logs.getMimo()
     campaign_iot_logs.getFrequencyBand()
     # campaign_iot_logs.getAllNas()
+    campaign_iot_logs.getRegistrationCompleteIndexTime()
 
 
     # PSU
@@ -44,7 +43,7 @@ def myMain():
     campaign_psu_logs.calculateTimePsuAndPower()
     campaign_psu_logs.findTwoMaxValues()
 
-    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[1].psu_logs, y_min=-0.5, y_max=2)
+    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[1].psu_logs, y_min=-0.5, y_max=1, x_lim_min=campaign_iot_logs.campaign_iot_logs[1].importantIndexes.prach_time, x_lim_max=campaign_iot_logs.campaign_iot_logs[1].importantIndexes.registration_complete_time)
     
     return 1
 

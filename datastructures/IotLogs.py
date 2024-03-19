@@ -84,6 +84,10 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getAllNas()
 
+    def getRegistrationCompleteIndexTime(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getRegistrationCompleteIndexTime()
+
 class IotLogs:
 
     def __init__(self, iot_logs=None):
@@ -97,8 +101,6 @@ class IotLogs:
 
         self.phy_time_in_secs_and_indexes_list = []
         self.non_phy_time_stamps_secs = []
-
-        self.prach_index = 0
 
         self.p_max = 0
         self.mcs_index = 0
@@ -142,20 +144,6 @@ class IotLogs:
 
         return 1
 
-    #Now sort the Phy log entries using FRAME and slot and at the same time keep track of the HFN which increases every time FRAME wraps around.
-    #Important note: the log entries are not sorted - they can vary several milliseconds. Example: log_entry1=time10, log_entry2=time8, log_entry3=time12
-    #The FRAME value range is 0-1023. When FRAME wraps around HFN has to count one up.
-    #The algorithm below will accept time difference on 512 * 10 ms in delay of "old" log entries and accept 511 * 10 ms in future (and same FRAME as previous biggest FRAME = 0 ms different).
-    #The timestamp is calculated like HFN * 10240ms + FRAME * 10ms + slot * 0.5ms
-
-    #      0 <--------------------------- FRAME range ---------------------------> 1023
-    #      |                                                                      |
-    #      |  Past 0-511            PrevBiggestFRAME=512     Future 513-1023        |
-    #      |  Future 0-510 (HFN+1)  Past 511-1022          PrevBiggestFRAME=1023    |
-    #      |  PrevBiggestFRAME=0      Future 1-510           Past 511-1022 (HFN-1)  |
-
-    #Key: calculated timestamp in seconds based on HFN, FRAME, slot
-    #Value: index in tapDbDataIoTLog
     def sortPhyLogEntries(self):
 
         calctime = 0.0
@@ -360,7 +348,7 @@ class IotLogs:
             if iot_log.info == 'PRACH':
                 found = 1
                 print(f"PRACH found at index {i} and time stamp {iot_log.timeIot}")
-                self.prach_index = i
+                self.importantIndexes = ImportantIndexes(i)
                 return found
             elif iot_log.direction == Direction:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
@@ -371,7 +359,7 @@ class IotLogs:
             return found
         
     def updateTimeStamp(self):
-        time = self.iot_logs[self.prach_index].timeIot
+        time = self.iot_logs[self.importantIndexes.prach_index].timeIot
         for i, iot_log in enumerate(self.iot_logs):
             iot_log.timeIot = iot_log.timeIot - time
 
@@ -453,6 +441,12 @@ class IotLogs:
             if iot_log.layer == Layer.NAS:
                 print(iot_log.message)
 
+    def getRegistrationCompleteIndexTime(self):
+        for i, iot_log in enumerate(self.iot_logs):
+            if iot_log.layer == Layer.NAS and MessagesNas.Registration_complete.value in iot_log.message:
+                self.importantIndexes.registration_complete_index = i
+                self.importantIndexes.registration_complete_time = iot_log.timeIot
+
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
         self.resulttypeid = int(resulttypeid)
@@ -471,3 +465,14 @@ class IotLog:
             self.timeIot = timeIot
         else:
             self.timeIot = 0.0
+
+class ImportantIndexes():
+    
+    def __init__(self, prach_index):
+
+        self.prach_index = prach_index
+        self.prach_time = 0
+
+        self.registration_complete_index = 0
+        self.registration_complete_time = 0
+        

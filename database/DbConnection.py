@@ -28,13 +28,14 @@ def connectToDb():
 
 def getDataFromDb(myDb, campaign_id, iot_psu):
     try:
-        print("Loading IoT Data")
         cursor = myDb.cursor()
 
         if iot_psu == 1:
+            print("Loading IoT Data")
             cursor.execute(getIotQuery(campaign_id))
 
         else:
+            print("Loading Psu Data")
             cursor.execute(getPsuQuery(campaign_id))
 
         # Get all rows

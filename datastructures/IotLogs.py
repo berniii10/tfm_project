@@ -14,7 +14,7 @@ class CampaignIotLogs:
     def howManyTestplans(self):
         return len(self.campaign_iot_logs)
 
-    def loadIotData(self, rows):
+    def loadIotData(self, rows, sweeps=None):
         indexes = {}
         temp_iot_logs = {}
 
@@ -34,7 +34,11 @@ class CampaignIotLogs:
                 temp_iot_logs[resulttypeid] = []
                 temp_iot_logs[resulttypeid].append(IotLog(*row, indexes[resulttypeid]))
 
-        self.campaign_iot_logs = [IotLogs(iot_logs=temp_iot_logs[key]) for key in temp_iot_logs]
+        if sweeps == None:
+            self.campaign_iot_logs = [IotLogs(iot_logs=temp_iot_logs[key]) for key in temp_iot_logs]
+        else:
+            self.campaign_iot_logs = [IotLogs(iot_logs=temp_iot_logs[next(iter(temp_iot_logs))])]
+
         print("IoT Data loaded correctly")
         return 1
     
@@ -64,6 +68,7 @@ class CampaignIotLogs:
 
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.sortNonPhyLogEntries()
+            print(f"Time to sort Non Phy Log entries: {time.time() - start_time}")
 
         #threads = []
         #for campaign_iot_log in self.campaign_iot_logs:
@@ -78,7 +83,7 @@ class CampaignIotLogs:
         end_time = time.time()
         elapsed_time = end_time - start_time
 
-        print(f"All threads have finished execution after {elapsed_time} seconds")
+        print(f"All threads have finished execution")
 
     def getPsuMax(self):
         for campaign_iot_log in self.campaign_iot_logs:
@@ -203,8 +208,8 @@ class IotLogs:
         frame = 0; #*10 ms
         slot = 0.0; #*0.5 ms
         distance = 0
-        offsetTimestamp = float(self.frame[0] * 10 + self.slot[0] * 0.5)
-        biggestFrameForCurrentHfn = self.frame[0]
+        offsetTimestamp = float(self.frame[self.phy_indexes[0]] * 10 + self.slot[self.phy_indexes[0]] * 0.5)
+        biggestFrameForCurrentHfn = self.frame[self.phy_indexes[0]]
 
         for i in range (0, len(self.phy_indexes), 1):
             if i > 2666:
@@ -343,19 +348,19 @@ class IotLogs:
             
             elif (self.phy_time_in_secs_and_indexes_list[phyIndex][0] == self.non_phy_time_stamps_secs[nonPhyIndex][0] and self.direction[self.non_phy_time_stamps_secs[nonPhyIndex][1]] == Direction.DL) or self.phy_time_in_secs_and_indexes_list[phyIndex][0] > self.non_phy_time_stamps_secs[nonPhyIndex][0]:
                 
-                resulttypeid.append(self.resulttypeid[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                timestamp.append(   self.timestamp[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                absolutetime.append(self.absolutetime[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                frame.append(       self.frame[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                slot.append(        self.slot[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                ue_id.append(       self.ue_id[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                layer.append(       self.layer[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                info.append(        self.info[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                direction.append(   self.direction[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                message.append(     self.message[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                extrainfo.append(   self.extrainfo[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                index.append(       self.index[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-                timeIot.append(     self.phy_time_in_secs_and_indexes_list[nonPhyIndex][0])
+                resulttypeid.append(self.resulttypeid[self.non_phy_indexes[nonPhyIndex]])
+                timestamp.append(   self.timestamp[self.non_phy_indexes[nonPhyIndex]])
+                absolutetime.append(self.absolutetime[self.non_phy_indexes[nonPhyIndex]])
+                frame.append(       self.frame[self.non_phy_indexes[nonPhyIndex]])
+                slot.append(        self.slot[self.non_phy_indexes[nonPhyIndex]])
+                ue_id.append(       self.ue_id[self.non_phy_indexes[nonPhyIndex]])
+                layer.append(       self.layer[self.non_phy_indexes[nonPhyIndex]])
+                info.append(        self.info[self.non_phy_indexes[nonPhyIndex]])
+                direction.append(   self.direction[self.non_phy_indexes[nonPhyIndex]])
+                message.append(     self.message[self.non_phy_indexes[nonPhyIndex]])
+                extrainfo.append(   self.extrainfo[self.non_phy_indexes[nonPhyIndex]])
+                index.append(       self.index[self.non_phy_indexes[nonPhyIndex]])
+                timeIot.append(     self.non_phy_time_stamps_secs[nonPhyIndex][0])
 
                 cleanedSortedAndTimestampedIndex += 1
                 nonPhyIndex += 1
@@ -385,19 +390,19 @@ class IotLogs:
             if (self.non_phy_time_stamps_secs[nonPhyIndex][0] == sys.float_info.max):
                 continue; # Log does not have a real timestamp might be due to the measurement being cut
             
-            resulttypeid.append(self.resulttypeid[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            timestamp.append(   self.timestamp[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            absolutetime.append(self.absolutetime[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            frame.append(       self.frame[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            slot.append(        self.slot[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            ue_id.append(       self.ue_id[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            layer.append(       self.layer[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            info.append(        self.info[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            direction.append(   self.direction[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            message.append(     self.message[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            extrainfo.append(   self.extrainfo[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            index.append(       self.index[self.phy_time_in_secs_and_indexes_list[nonPhyIndex][1]])
-            timeIot.append(     self.phy_time_in_secs_and_indexes_list[nonPhyIndex][0])
+            resulttypeid.append(self.resulttypeid[self.non_phy_indexes[nonPhyIndex]])
+            timestamp.append(   self.timestamp[self.non_phy_indexes[nonPhyIndex]])
+            absolutetime.append(self.absolutetime[self.non_phy_indexes[nonPhyIndex]])
+            frame.append(       self.frame[self.non_phy_indexes[nonPhyIndex]])
+            slot.append(        self.slot[self.non_phy_indexes[nonPhyIndex]])
+            ue_id.append(       self.ue_id[self.non_phy_indexes[nonPhyIndex]])
+            layer.append(       self.layer[self.non_phy_indexes[nonPhyIndex]])
+            info.append(        self.info[self.non_phy_indexes[nonPhyIndex]])
+            direction.append(   self.direction[self.non_phy_indexes[nonPhyIndex]])
+            message.append(     self.message[self.non_phy_indexes[nonPhyIndex]])
+            extrainfo.append(   self.extrainfo[self.non_phy_indexes[nonPhyIndex]])
+            index.append(       self.index[self.non_phy_indexes[nonPhyIndex]])
+            timeIot.append(     self.non_phy_time_stamps_secs[nonPhyIndex][0])
             
             cleanedSortedAndTimestampedIndex += 1
             nonPhyIndex += 1
@@ -460,15 +465,15 @@ class IotLogs:
                 pass
 
     def findHighestFrameAndSlot(self):
-        frame = -1
-        slot = -1
-        for slot, frame in self.slot, self.frame:
+        frame_ = -1
+        slot_ = -1
+        for slot, frame in zip(self.slot, self.frame):
 
-            if frame < frame:
-                frame = frame
+            if frame_ < frame:
+                frame_ = frame
 
-            if slot < slot:
-                slot = slot
+            if slot_ < slot:
+                slot_ = slot
 
         print(f"Result Type ID: {self.resulttypeid[0]}. Biggest Frame: {frame}. Biggest Slot: {slot}")
 
@@ -478,7 +483,7 @@ class IotLogs:
         found1 = 0
         found2 = 0
 
-        for i, layer, message, extrainfo in enumerate(self.layer, self.message, self.extrainfo):
+        for i, (layer, message, extrainfo) in enumerate(zip(self.layer, self.message, self.extrainfo)):
 
             if layer == Layer.NAS and 'Registration request' in message and found1 == 0:
                 for j in range(i, i+100, 1):
@@ -501,7 +506,7 @@ class IotLogs:
     def getMimo(self):
         pattern1 = r'maxMIMO-Layers\s+(\d+)'
 
-        for layer, message, extrainfo in self.layer, self.message, self.extrainfo:
+        for layer, message, extrainfo in zip(self.layer, self.message, self.extrainfo):
 
             if layer == Layer.RRC and 'RRC reconfiguration' in message:
                 mimo = re.search(pattern1, extrainfo)
@@ -514,7 +519,7 @@ class IotLogs:
         pattern = r'freqBandIndicatorNR\s+(\d+)'
         freq_band = -50
 
-        for message, extrainfo in self.message, self.extrainfo:
+        for message, extrainfo in zip(self.message, self.extrainfo):
             if MessagesRrc.SIB1.value in message:
                 freq_band = re.search(pattern, extrainfo)
                 if freq_band != -50:
@@ -526,12 +531,12 @@ class IotLogs:
     
     def getAllNas(self):
 
-        for layer, message in self.layer, self.message:
+        for layer, message in zip(self.layer, self.message):
             if layer == Layer.NAS:
                 print(message)
 
     def getRegistrationCompleteIndexTime(self):
-        for i, layer, message, timeIot in enumerate(self.layer, self.message, self.timeIot):
+        for i, (layer, message, timeIot) in enumerate(zip(self.layer, self.message, self.timeIot)):
             if layer == Layer.NAS and MessagesNas.Registration_complete.value in message:
                 self.importantIndexes.registration_complete_index = i
                 self.importantIndexes.registration_complete_time = timeIot

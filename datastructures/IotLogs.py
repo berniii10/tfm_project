@@ -1,5 +1,6 @@
 import sys
 import re
+import threading
 from psycopg2 import Error
 from datastructures.enums import *
 
@@ -57,8 +58,20 @@ class CampaignIotLogs:
             campaign_iot_log.sortPhyLogEntries()
 
     def sortNonPhyLogEntries(self):
+        #for campaign_iot_log in self.campaign_iot_logs:
+        #    campaign_iot_log.sortNonPhyLogEntries()
+
+        threads = []
         for campaign_iot_log in self.campaign_iot_logs:
-            campaign_iot_log.sortNonPhyLogEntries()
+            thread = threading.Thread(target=campaign_iot_log.sortNonPhyLogEntries)
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
+
+        print("All threads have finished execution")
 
     def getPsuMax(self):
         for campaign_iot_log in self.campaign_iot_logs:
@@ -102,6 +115,24 @@ class IotLogs:
         self.phy_time_in_secs_and_indexes_list = []
         self.non_phy_time_stamps_secs = []
 
+        # -------------------------
+
+        self.resulttypeid = []
+        self.timestamp = []
+        self.absolutetime = []
+        self.frame = []
+        self.slot = []
+        self.ue_id = []
+        self.layer = []
+        self.info = []
+        self.direction = []
+        self.message = []
+        self.extrainfo = []
+        self.index = []
+        self.timeIot = []
+
+        # -------------------------
+
         self.p_max = 0
         self.mcs_index = 0
         self.mcs_table = ''
@@ -114,7 +145,21 @@ class IotLogs:
     
     def addIotLog(self, iot_log):
 
-        self.iot_logs.append(iot_log)
+        #self.iot_logs.append(iot_log)
+
+        self.resulttypeid.append(iot_log.resulttypeid)
+        self.timestamp.append(iot_log.timestamp)
+        self.absolutetime.append(iot_log.absolutetime)
+        self.frame.append(iot_log.frame)
+        self.slot.append(iot_log.slot)
+        self.ue_id.append(iot_log.ue_id)
+        self.layer.append(iot_log.layer)
+        self.info.append(iot_log.info)
+        self.direction.append(iot_log.direction)
+        self.message.append(iot_log.message)
+        self.extrainfo.append(iot_log.extrainfo)
+        self.index.append(iot_log.index)
+        self.timeIot.append(iot_log.timeIot)
 
         if iot_log.slot > 0:
             pass
@@ -191,14 +236,17 @@ class IotLogs:
         
         #Sort the list by calculated timestamp in seconds based on HFN, frame, slot
         self.phy_time_in_secs_and_indexes_list = sorted(self.phy_time_in_secs_and_indexes_list, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
+        print("Sorted Phy Log Entries")
         return 1
     
     def sortNonPhyLogEntries(self):
         
         for i in range (0, len(self.non_phy_indexes), 1):
             indexOfPhyLayerEquivalentLogEntry = -1
-            
-            if self.iot_logs[self.non_phy_indexes[i]].direction == Direction.UL and (self.iot_logs[self.non_phy_indexes[i]].layer == Layer.MAC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.RRC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.NAS):
+            layer = self.iot_logs[self.non_phy_indexes[i]].layer
+            direction = self.iot_logs[self.non_phy_indexes[i]].direction
+
+            if direction == Direction.UL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
                 for u in range(len(self.phy_nonsib_indexes)-1, 0, -1):
                     if (self.non_phy_indexes[i] > self.phy_nonsib_indexes[u]):
@@ -211,7 +259,7 @@ class IotLogs:
                     print("Rogue Non-PHY message detected")
                     return -1
             
-            elif self.iot_logs[self.non_phy_indexes[i]].direction == Direction.DL and (self.iot_logs[self.non_phy_indexes[i]].layer == Layer.MAC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.RRC or self.iot_logs[self.non_phy_indexes[i]].layer == Layer.NAS):
+            elif direction == Direction.DL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
             
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
                 if "SIB" in self.iot_logs[self.non_phy_indexes[i]].message:
@@ -242,7 +290,7 @@ class IotLogs:
                     self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
                     break; # Break for loop
             
-            
+        print("Sorted Non Phy Log entries")
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
 
     def cleanData(self):
@@ -327,6 +375,7 @@ class IotLogs:
             nonPhyIndex += 1
 
         self.iot_logs = tmp_clean_sorted_timestamped_data
+        print("Data Cleaned")
         
     def getPsuMax(self):
         pattern = r'p-Max\s+(\d+)'

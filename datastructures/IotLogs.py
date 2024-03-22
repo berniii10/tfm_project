@@ -74,16 +74,6 @@ class CampaignIotLogs:
             campaign_iot_log.sortNonPhyLogEntries()
             print(f"Time to sort Non Phy Log entries: {time.time() - start_time}")
 
-        #threads = []
-        #for campaign_iot_log in self.campaign_iot_logs:
-        #    thread = threading.Thread(target=campaign_iot_log.sortNonPhyLogEntries)
-        #    threads.append(thread)
-        #    thread.start()
-
-        # Wait for all threads to finish
-        #for thread in threads:
-        #    thread.join()
-
         end_time = time.time()
         elapsed_time = end_time - start_time
 
@@ -222,8 +212,7 @@ class IotLogs:
         biggestFrameForCurrentHfn = self.frame[self.phy_indexes[0]]
 
         for i in range (0, len(self.phy_indexes), 1):
-            if i > 2666:
-                pass
+            
             frame = self.frame[self.phy_indexes[i]]
             slot  = self.slot[self.phy_indexes[i]]
 
@@ -262,6 +251,8 @@ class IotLogs:
         return 1
     
     def sortNonPhyLogEntries(self):
+
+        # Prepare data in numpy arrays
         non_phy_indexes_tmp = np.array(self.non_phy_indexes)
         phy_nonsib_indexes_tmp = np.array(self.phy_nonsib_indexes)
         phy_sib_indexes_tmp = np.array(self.phy_sib_indexes)
@@ -273,12 +264,13 @@ class IotLogs:
                 phy_nonsib_indexes_without_dci.append(phy_nonsib_index)
         phy_nonsib_indexes_without_dci_tmp = np.array(phy_nonsib_indexes_without_dci)
 
+        phy_time_in_secs_and_indexes_list_tmp = np.array([item[1] for item in self.phy_time_in_secs_and_indexes_list])
+
         for i in range (0, len(self.non_phy_indexes), 1):
             indexOfPhyLayerEquivalentLogEntry = -1
 
             layer = self.layer[self.non_phy_indexes[i]]
             direction = self.direction[self.non_phy_indexes[i]]
-            start_time = time.time()
 
             if direction == Direction.UL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
@@ -296,15 +288,11 @@ class IotLogs:
 
                         indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u] # We do not need to check if phy_nonsib_indexes[0] is bigger than non_phy_indexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
                         break; # Break for loop  
-                """
-                # print(f"Time in FOR in the UL: {time.time() - start_time}")
-                    
+                """                    
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
                     print("Rogue Non-PHY message detected")
                     return -1
-            
-                print(f"Time in Direction UL: {time.time() - start_time}")
 
             elif direction == Direction.DL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
@@ -339,27 +327,32 @@ class IotLogs:
                         # Get the minimum index
                         min_index = np.min(indices)
                         indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[min_index]
-                        return indexOfPhyLayerEquivalentLogEntry
                     else:
-                        return None
+                        return -1
                     
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
                     self.non_phy_time_stamps_secs.append((sys.float_info.max/10, self.non_phy_indexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
                     continue
-                print(f"Time in direction DL: {time.time() - start_time}")
-
+                
             else:
                 print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.non_phy_indexes[i]].layer}\". Direction=\"{self.iot_logs[self.non_phy_indexes[i]].direction}\"")
                 return -1 
             
+            # Step 2: Find the index where phy_time_array matches indexOfPhyLayerEquivalentLogEntry
+            index = np.where(phy_time_in_secs_and_indexes_list_tmp == indexOfPhyLayerEquivalentLogEntry)[0]
+
+            # Step 3: Append the corresponding tuple to self.non_phy_time_stamps_secs
+            if len(index) > 0:
+                self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[index[0]][0], self.non_phy_indexes[i]))
+
+            """
             for u in range(0, len(self.phy_time_in_secs_and_indexes_list), 1):
                 if (self.phy_time_in_secs_and_indexes_list[u][1] == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
                     
                     self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
                     break; # Break for loop
-
-            print(f"Time spent in the Overall Loop: {time.time() - start_time}")
+            """
             
         print("Sorted Non Phy Log entries")
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();

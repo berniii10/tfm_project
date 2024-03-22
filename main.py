@@ -11,7 +11,7 @@ import time
 campaign_id = 376 # 221
 
 Iot = True
-Psu = False
+Psu = True
 
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
@@ -106,7 +106,7 @@ def myMain():
             pass    # Load data here
 
         threadPsu.join()
-        psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=8)
+        # psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=8)
     # ----------- PSU -----------
         
     threadIot.join()

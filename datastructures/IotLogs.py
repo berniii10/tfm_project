@@ -1,7 +1,10 @@
 import sys
 import re
+import csv
 import time
+import pickle
 import threading
+import numpy as np
 from psycopg2 import Error
 from datastructures.enums import *
 
@@ -10,6 +13,7 @@ class CampaignIotLogs:
     
     def __init__(self):
         self.campaign_iot_logs = []
+        
 
     def howManyTestplans(self):
         return len(self.campaign_iot_logs)
@@ -113,6 +117,10 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getRegistrationCompleteIndexTime()
 
+    def saveToCsv(self):
+        for i, campaign_iot_log in enumerate(self.campaign_iot_logs):
+            campaign_iot_log.saveToCsv(i)
+
 class IotLogs:
 
     def __init__(self, iot_logs=None):
@@ -126,6 +134,8 @@ class IotLogs:
 
         self.phy_time_in_secs_and_indexes_list = []
         self.non_phy_time_stamps_secs = []
+
+        self.importantIndexes = ImportantIndexes()
 
         # -------------------------
 
@@ -252,46 +262,93 @@ class IotLogs:
         return 1
     
     def sortNonPhyLogEntries(self):
-        
+        non_phy_indexes_tmp = np.array(self.non_phy_indexes)
+        phy_nonsib_indexes_tmp = np.array(self.phy_nonsib_indexes)
+        phy_sib_indexes_tmp = np.array(self.phy_sib_indexes)
+        # aux = len(self.phy_nonsib_indexes)-1 - (len(self.phy_nonsib_indexes)-1 - 200)
+
+        phy_nonsib_indexes_without_dci = []
+        for phy_nonsib_index in self.phy_nonsib_indexes:
+            if "dci" not in self.message[phy_nonsib_index]:
+                phy_nonsib_indexes_without_dci.append(phy_nonsib_index)
+        phy_nonsib_indexes_without_dci_tmp = np.array(phy_nonsib_indexes_without_dci)
+
         for i in range (0, len(self.non_phy_indexes), 1):
             indexOfPhyLayerEquivalentLogEntry = -1
+
             layer = self.layer[self.non_phy_indexes[i]]
             direction = self.direction[self.non_phy_indexes[i]]
+            start_time = time.time()
 
             if direction == Direction.UL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
+                indices = np.where(non_phy_indexes_tmp[i] > phy_nonsib_indexes_tmp)[0]
+
+                if len(indices) > 0:
+                    # Get the maximum index
+                    max_index = np.max(indices)
+                    indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[max_index]
+                else:
+                    return -1
+                """
                 for u in range(len(self.phy_nonsib_indexes)-1, 0, -1):
                     if (self.non_phy_indexes[i] > self.phy_nonsib_indexes[u]):
 
-                        indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u]; # We do not need to check if phy_nonsib_indexes[0] is bigger than non_phy_indexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
-                        break; # Break for loop
+                        indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u] # We do not need to check if phy_nonsib_indexes[0] is bigger than non_phy_indexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
+                        break; # Break for loop  
+                """
+                # print(f"Time in FOR in the UL: {time.time() - start_time}")
                     
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
                     print("Rogue Non-PHY message detected")
                     return -1
             
+                print(f"Time in Direction UL: {time.time() - start_time}")
+
             elif direction == Direction.DL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
-            
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
                 if "SIB" in self.message[self.non_phy_indexes[i]]:
+                    """
                     for u in range(0, len(self.phy_sib_indexes), 1):
                         if (self.non_phy_indexes[i] < self.phy_sib_indexes[u]):
 
                             indexOfPhyLayerEquivalentLogEntry = self.phy_sib_indexes[u]
                             break; # Break for loop
+                    """
+                    indices = np.where(non_phy_indexes_tmp[i] < phy_sib_indexes_tmp)[0]
+
+                    if len(indices) > 0:
+                        # Get the minimum index
+                        min_index = np.min(indices)
+                        indexOfPhyLayerEquivalentLogEntry = phy_sib_indexes_tmp[min_index]
+                    else:
+                        return None
+                    
                 else:
+                    """
                     for u in range(0, len(self.phy_nonsib_indexes), 1):
-                        if (self.non_phy_indexes[i] < self.phy_nonsib_indexes[u] and "dci" in self.message[self.phy_nonsib_indexes[u]]):
+                        if (self.non_phy_indexes[i] < self.phy_nonsib_indexes[u] and "dci" not in self.message[self.phy_nonsib_indexes[u]]):
                         
                             indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u]
                             break; # Break for loop
-                        
+                    """
+                    indices = np.where(non_phy_indexes_tmp[i] < phy_nonsib_indexes_without_dci_tmp)[0]
+
+                    if len(indices) > 0:
+                        # Get the minimum index
+                        min_index = np.min(indices)
+                        indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[min_index]
+                        return indexOfPhyLayerEquivalentLogEntry
+                    else:
+                        return None
+                    
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
                     self.non_phy_time_stamps_secs.append((sys.float_info.max/10, self.non_phy_indexes[i])) # This is only when LittleOne cuts the log in the end - in that case we just set timestamp to max value since we can't find the matching Phy timestamp
                     continue
-            
+                print(f"Time in direction DL: {time.time() - start_time}")
+
             else:
                 print("Unknown Non-PHY log entry. Layer=\"{self.iot_logs[self.non_phy_indexes[i]].layer}\". Direction=\"{self.iot_logs[self.non_phy_indexes[i]].direction}\"")
                 return -1 
@@ -301,6 +358,8 @@ class IotLogs:
                     
                     self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
                     break; # Break for loop
+
+            print(f"Time spent in the Overall Loop: {time.time() - start_time}")
             
         print("Sorted Non Phy Log entries")
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
@@ -442,7 +501,8 @@ class IotLogs:
             if info == 'PRACH':
                 found = 1
                 print(f"PRACH found at index {i} and time stamp {self.timeIot[i]}")
-                self.importantIndexes = ImportantIndexes(i)
+                self.importantIndexes.prach_index = i
+                self.importantIndexes.prach_time = self.timeIot[i]
                 return found
             elif self.direction[i] == Direction.UL.value:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
@@ -453,9 +513,9 @@ class IotLogs:
             return found
         
     def updateTimeStamp(self):
-        time = self.timeIot[self.importantIndexes.prach_index]
+        time = self.importantIndexes.prach_time
         for i, timeIot in enumerate(self.timeIot):
-            timeIot = timeIot - time
+            self.timeIot[i] = timeIot - time
 
     def searchSib(self):
         for i, message in enumerate(self.message):
@@ -541,6 +601,24 @@ class IotLogs:
                 self.importantIndexes.registration_complete_index = i
                 self.importantIndexes.registration_complete_time = timeIot
 
+    def saveToCsv(self, name):
+        all_lists = [self.frame, self.slot, self.info, self.layer, self.direction, self.extrainfo, self.timeIot]
+        csv_file_path = "output" + str(name) + ".csv"
+
+        # Define the number of rows to save
+        num_rows_to_save = 3000
+
+        # Open the CSV file in write mode
+        with open(csv_file_path, mode='w', newline='') as file:
+            # Create a CSV writer object
+            writer = csv.writer(file)
+            
+            # Write the first num_rows_to_save rows from the lists to the CSV file
+            for i, row in enumerate(zip(*all_lists)):
+                if i >= num_rows_to_save:
+                    break
+                writer.writerow(row)
+
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
         self.resulttypeid = int(resulttypeid)
@@ -562,7 +640,7 @@ class IotLog:
 
 class ImportantIndexes():
     
-    def __init__(self, prach_index):
+    def __init__(self, prach_index=None):
 
         self.prach_index = prach_index
         self.prach_time = 0

@@ -82,7 +82,7 @@ class PsuLogs:
 
     def calculateTimePsuAndPower(self):
         for psu_log in self.psu_logs:
-            psu_log.time_psu = psu_log.starttime - self.psu_time_offset
+            psu_log.time_psu = psu_log.starttime - self.psu_time_offset - 1/1000
             psu_log.power = self.voltage * psu_log.amperes
 
     def findTwoMaxValues(self):

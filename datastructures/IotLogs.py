@@ -13,7 +13,6 @@ class CampaignIotLogs:
     
     def __init__(self):
         self.campaign_iot_logs = []
-        
 
     def howManyTestplans(self):
         return len(self.campaign_iot_logs)
@@ -110,6 +109,23 @@ class CampaignIotLogs:
     def saveToCsv(self):
         for i, campaign_iot_log in enumerate(self.campaign_iot_logs):
             campaign_iot_log.saveToCsv(i)
+
+    def getPuschTimes(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getPuschTimes()
+
+    def getPdcchTimes(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getPdcchTimes()
+
+    def getPdschTimes(self):
+        aux = []
+        for campaign_iot_log in self.campaign_iot_logs:
+            return campaign_iot_log.getPdschTimes()
+
+    def getPucchTimes(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            return campaign_iot_log.getPucchTimes()
 
 class IotLogs:
 
@@ -358,7 +374,6 @@ class IotLogs:
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
 
     def cleanData(self):
-        tmp_clean_sorted_timestamped_data = []
 
         resulttypeid = []
         timestamp = []
@@ -612,6 +627,38 @@ class IotLogs:
                     break
                 writer.writerow(row)
 
+    def getPuschTimes(self):
+        for i, info in enumerate(self.info):
+            if Channel.PUSCH.value in info:
+                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                if self.timeIot[i] < 10:
+                    self.importantIndexes.pusch_times.append(self.timeIot[i])
+
+    def getPdcchTimes(self):
+        for i, info in enumerate(self.info):
+            if Channel.PDCCH.value in info:
+                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
+                    self.importantIndexes.pdcch_times.append(self.timeIot[i])
+
+    def getPdschTimes(self):
+        aux = []
+        for i, info in enumerate(self.info):
+            if Channel.PDSCH.value in info:
+                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
+                    aux.append(self.timeIot[i])
+        return aux
+
+    def getPucchTimes(self):
+        aux = []
+        for i, info in enumerate(self.info):
+            if Channel.PUCCH.value in info:
+                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
+                    aux.append(self.timeIot[i])
+        return aux
+
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
         self.resulttypeid = int(resulttypeid)
@@ -640,4 +687,10 @@ class ImportantIndexes():
 
         self.registration_complete_index = 0
         self.registration_complete_time = 0
+
+        self.pusch_times = []
+        self.pdcch_times = []
+
+    def getAllTimesList(self):
+        return [self.pusch_times, self.pdcch_times]
         

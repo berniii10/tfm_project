@@ -9,7 +9,7 @@ class CampaignPsuLogs:
     def howManyTestPlans(self):
         return len(self.psu_logs)
     
-    def loadData(self, rows):
+    def loadData(self, rows, sweeps=None):
         indexes = {}
         temp_psu_logs = {}
 
@@ -26,12 +26,17 @@ class CampaignPsuLogs:
                 temp_psu_logs[resulttypeid].append(PsuLog(*row))
             else:
                 temp_psu_logs[resulttypeid] = []
+        
+        if sweeps == None:
+            self.campaign_psu_logs  = [PsuLogs() for i in range(len(temp_psu_logs))]
 
-        self.campaign_psu_logs  = [PsuLogs() for i in range(len(temp_psu_logs))]
+            for i, key in enumerate(temp_psu_logs):
+                self.campaign_psu_logs[i].loadPsuData(temp_psu_logs[key])
+        else:
+            self.campaign_psu_logs  = [PsuLogs()]
 
-        for i, key in enumerate(temp_psu_logs):
-            self.campaign_psu_logs[i].loadPsuData(temp_psu_logs[key])
-
+            self.campaign_psu_logs[0].loadPsuData(temp_psu_logs[next(iter(temp_psu_logs))])
+        
         return 1
 
     def searchVoltageSpike(self):
@@ -66,9 +71,10 @@ class PsuLogs:
 
     def searchVoltageSpike(self):
         found = -1
-        for psu_log in self.psu_logs:
+        for i, psu_log in enumerate(self.psu_logs):
             if psu_log.volts > 1:
                 self.psu_time_offset = psu_log.starttime
+                print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1
                 break
             

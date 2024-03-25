@@ -57,11 +57,12 @@ def iotPostProcessing(myDb):
 
 
 def psuPostProcessing(myDb):
+    sweeps = 1
     global Psu
     global campaign_psu_logs
 
     psu_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=0)
-    campaign_psu_logs.loadData(psu_rows)
+    campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
     
     if campaign_psu_logs.searchVoltageSpike() == -1:
         return -1
@@ -113,8 +114,10 @@ def myMain():
     
     while Psu == True and Iot == True:
         time.sleep(10)
+
+    # DATA is ready here for proper post processing
     
-    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=8, x_lim_min=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.prach_time, x_lim_max=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.registration_complete_time)
+    psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, x_lim_min=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.prach_time, x_lim_max=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.registration_complete_time)
     
     return 1
 

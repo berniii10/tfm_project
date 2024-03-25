@@ -495,7 +495,7 @@ class IotLogs:
                 found = 1
                 print(f"PRACH found at index {i} and time stamp {self.timeIot[i]}")
                 self.importantIndexes.prach_index = i
-                self.importantIndexes.prach_time = self.timeIot[i]
+                self.importantIndexes.prach_time = 0
                 return found
             elif self.direction[i] == Direction.UL.value:
                 print("DUT activity detected before PRACH. Cannot sync PSU and IoT logs.")
@@ -506,7 +506,7 @@ class IotLogs:
             return found
         
     def updateTimeStamp(self):
-        time = self.importantIndexes.prach_time
+        time = self.timeIot[self.importantIndexes.prach_index]
         for i, timeIot in enumerate(self.timeIot):
             self.timeIot[i] = timeIot - time
 

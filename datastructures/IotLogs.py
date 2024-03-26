@@ -110,13 +110,13 @@ class CampaignIotLogs:
         for i, campaign_iot_log in enumerate(self.campaign_iot_logs):
             campaign_iot_log.saveToCsv(i)
 
-    def getPuschTimes(self):
+    def getPuschTimes(self, lim):
         for campaign_iot_log in self.campaign_iot_logs:
-            campaign_iot_log.getPuschTimes()
+            campaign_iot_log.getPuschTimes(lim)
 
-    def getPdcchTimes(self):
+    def getPdcchTimes(self, lim):
         for campaign_iot_log in self.campaign_iot_logs:
-            campaign_iot_log.getPdcchTimes()
+            campaign_iot_log.getPdcchTimes(lim)
 
     def getPdschTimes(self):
         aux = []
@@ -126,6 +126,10 @@ class CampaignIotLogs:
     def getPucchTimes(self):
         for campaign_iot_log in self.campaign_iot_logs:
             return campaign_iot_log.getPucchTimes()
+        
+    def getMeanAndDeviation(self, campaign_psu_log):
+        for campaign_iot_log, campaign_psu_log in zip(self.campaign_iot_logs, campaign_psu_log.campaign_psu_logs):
+            campaign_iot_log.getMeanAndDeviation(campaign_psu_log)
 
 class IotLogs:
 
@@ -167,6 +171,13 @@ class IotLogs:
         self.mimo = 1
         self.bw = 0
         self.freq_band = 0
+
+        self.p_tx_mean = 0
+        self.p_tx_min = 0
+        self.p_tx_max = 0
+        self.p_tx_standard_deviation = 0
+        self.p_tx_powers = 0
+        self.p_tx_median = 0
 
         if iot_logs != None:
             self.loadIotData(iot_logs=iot_logs)
@@ -627,18 +638,18 @@ class IotLogs:
                     break
                 writer.writerow(row)
 
-    def getPuschTimes(self):
-        for i, info in enumerate(self.info):
+    def getPuschTimes(self, lim):
+        for i, info in enumerate(self.info,):
             if Channel.PUSCH.value in info:
                 #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] < 10:
+                if self.timeIot[i] < lim:
                     self.importantIndexes.pusch_times.append(self.timeIot[i])
 
-    def getPdcchTimes(self):
+    def getPdcchTimes(self, lim):
         for i, info in enumerate(self.info):
             if Channel.PDCCH.value in info:
                 #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
+                if self.timeIot[i] > -0.5 and self.timeIot[i] < lim:
                     self.importantIndexes.pdcch_times.append(self.timeIot[i])
 
     def getPdschTimes(self):
@@ -658,6 +669,54 @@ class IotLogs:
                 if self.timeIot[i] > 0 and self.timeIot[i] < 10:
                     aux.append(self.timeIot[i])
         return aux
+    
+    def getPowerOfPusch(self, index, psu_times, psu_powers):
+
+        timePusch = self.timeIot[index]
+        timePuschEnd = timePusch + 0.0005
+
+        mask = (psu_times > timePusch) & (psu_times < timePuschEnd)
+        relevant_powers = psu_powers[mask]
+
+        if len(relevant_powers) == 0:
+            # print("No powers found within the specified time range") #Means we are at the end, and beyond
+            return -1
+        
+        return np.mean(relevant_powers)
+
+        """
+        timePusch = self.timeIot[index]
+        timePuschEnd = timePusch + 0.0005
+        mean_power = []
+
+        for psu_log in psu_logs.psu_logs:
+            if psu_log.time_psu > timePusch and psu_log.time_psu < timePuschEnd:
+                mean_power.append(psu_log.power)
+
+        return sum(mean_power)/len(mean_power)
+        """
+
+
+    def getMeanAndDeviation(self, psu_logs):
+
+        psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
+        psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
+
+        powers = []
+        for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
+            if Channel.PUSCH.value in info:
+
+                power = self.getPowerOfPusch(i, psu_times, psu_powers)
+                if power == -1:
+                    break
+                powers.append(power)
+
+        self.p_tx_mean = np.mean(powers)
+        self.p_tx_min = min(powers)
+        self.p_tx_max = max(powers)
+        self.p_tx_standard_deviation = np.std(powers)
+        self.p_tx_powers = powers
+        self.p_tx_median = np.median(powers)
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
@@ -692,5 +751,5 @@ class ImportantIndexes():
         self.pdcch_times = []
 
     def getAllTimesList(self):
-        return [self.pusch_times, self.pdcch_times]
+        return [[self.prach_time], [self.registration_complete_time], self.pusch_times, self.pdcch_times]
         

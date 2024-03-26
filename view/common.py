@@ -31,7 +31,7 @@ def psuRawPlot(psu_logs, y_min=None, y_max=None, x_lim_min=None, x_lim_max=None)
     for index, psu_log in enumerate(psu_logs):
         
         if psu_log.time_psu > y_min and psu_log.time_psu < y_max:
-            power.append(psu_log.power)
+            power.append(psu_log.amperes)
             time.append(psu_log.time_psu)
 
         #if (psu_log.starttime > 10):
@@ -42,8 +42,8 @@ def psuRawPlot(psu_logs, y_min=None, y_max=None, x_lim_min=None, x_lim_max=None)
 
 def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines_array=None):
     # Create a line plot
-    colors = ['Red', 'Black', 'Green', 'Blue', 'Yellow', 'Purple', 'Brown', 'White']
-    colors_legend = ['PUSCH', 'PDCCH', 'PDSCH', 'PUCCH', 'PRACH', 'Registration Complete']
+    colors = ['Green', 'Blue', 'Red', 'Black', 'Yellow', 'Purple', 'Brown']
+    colors_legend = ['PRACH', 'Registration Complete', 'PUSCH', 'PDCCH', 'PDSCH', 'PUCCH']
 
     plt.plot(x_values, y_values, label='Power Samples', zorder=2)
 
@@ -52,7 +52,7 @@ def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines
             plt.plot([], [], color=colors[i], label=colors_legend[i])
             for line in lines:
                 if line < y_max:
-                    # plt.axvline(x=line, color=colors[i], linestyle='--', linewidth=1)  # Red dashed line at x_lim_min
+                    plt.axvline(x=line, color=colors[i], linestyle='--', linewidth=1)  # Red dashed line at x_lim_min
                     # # plt.axvline(x=line+0.00049, color=colors[i], linewidth=0.5)  # Red dashed line at x_lim_min
                     
                     rect = patches.Rectangle((line, 0), 0.0005, max(y_values), linewidth=0.5, edgecolor=colors[i], facecolor=colors[i], alpha=0.3)

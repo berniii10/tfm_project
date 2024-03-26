@@ -1,5 +1,6 @@
 import os
 import pickle
+import numpy as np
 import database.DbConnection as DbConnection
 from datastructures.IotLogs import CampaignIotLogs
 from datastructures.PsuLog import CampaignPsuLogs
@@ -8,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 376 # 221
+campaign_id = 425 # 376 # 221
 
 Iot = True
 Psu = True
@@ -16,14 +17,14 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
-load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
-load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = False
+saveToPickle = True
 
 
 def iotPostProcessing(myDb):
-    sweeps = 1
+    sweeps = None
     global Iot
     global campaign_iot_logs
 
@@ -57,7 +58,7 @@ def iotPostProcessing(myDb):
 
 
 def psuPostProcessing(myDb):
-    sweeps = 1
+    sweeps = None
     global Psu
     global campaign_psu_logs
 
@@ -113,7 +114,6 @@ def myMain():
             threadPsu.join()
 
         Psu = False
-        # psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=8)
     # ----------- PSU -----------
     
     if load_or_read_AllDataIot == False:
@@ -127,19 +127,27 @@ def myMain():
     # DATA is ready here for proper post processing
     
 
-    campaign_iot_logs.getPuschTimes()
-    campaign_iot_logs.getPdcchTimes()
+    campaign_iot_logs.getPuschTimes(lim=50)
+    campaign_iot_logs.getPdcchTimes(lim=50)
 
-    all_times = campaign_iot_logs.campaign_iot_logs[0].importantIndexes.getAllTimesList()
-    all_times.append(campaign_iot_logs.getPdschTimes())
-    all_times.append(campaign_iot_logs.getPucchTimes())
-    all_times.append([campaign_iot_logs.campaign_iot_logs[0].importantIndexes.prach_time])
-    all_times.append([campaign_iot_logs.campaign_iot_logs[0].importantIndexes.registration_complete_time])
+    campaign_iot_logs.getMeanAndDeviation(campaign_psu_logs)
 
-    psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.25, y_max=2, lines_array=all_times)
+    for campaign_psu_log, campaign_iot_log in zip(campaign_psu_logs.campaign_psu_logs, campaign_iot_logs.campaign_iot_logs):
+        all_times = campaign_iot_log.importantIndexes.getAllTimesList()
+        #all_times.append(campaign_iot_log.getPdschTimes())
+        #all_times.append(campaign_iot_log.getPucchTimes())
 
-    
-    
+        print(f"For power transmission: {campaign_iot_log.p_max}\n"
+              f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean}\n"
+              f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median}\n"
+              f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min}\n"
+              f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max}\n"
+              f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation}\n"
+              "--------------------------------------------------------------------")
+
+        psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.25, y_max=3, lines_array=all_times)
+        
+
     return 1
 
 if __name__ == "__main__":

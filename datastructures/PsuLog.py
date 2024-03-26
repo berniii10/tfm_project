@@ -72,7 +72,7 @@ class PsuLogs:
     def searchVoltageSpike(self):
         found = -1
         for i, psu_log in enumerate(self.psu_logs):
-            if psu_log.volts > 1:
+            if psu_log.amperes > 0.3: #0.275:
                 self.psu_time_offset = psu_log.starttime
                 print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1
@@ -82,7 +82,7 @@ class PsuLogs:
 
     def calculateTimePsuAndPower(self):
         for psu_log in self.psu_logs:
-            psu_log.time_psu = psu_log.starttime - self.psu_time_offset - 1/1000
+            psu_log.time_psu = psu_log.starttime - self.psu_time_offset # - 1/1000
             psu_log.power = self.voltage * psu_log.amperes
 
     def findTwoMaxValues(self):

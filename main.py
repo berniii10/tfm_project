@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 425 # 376 # 221
+campaign_id = 461 # 425
 
 Iot = True
 Psu = True
@@ -17,10 +17,10 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
-load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
-load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = True
+saveToPickle = False
 
 
 def iotPostProcessing(myDb):
@@ -50,9 +50,9 @@ def iotPostProcessing(myDb):
     # campaign_iot_logs.getAllNas()
     campaign_iot_logs.getRegistrationCompleteIndexTime()
 
-    if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-            pickle.dump(campaign_iot_logs, file)
+    #if saveToPickle == True:
+    #    with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+    #        pickle.dump(campaign_iot_logs, file)
 
     campaign_iot_logs.saveToCsv()
 
@@ -126,18 +126,25 @@ def myMain():
 
     # DATA is ready here for proper post processing
     
+    # for i, campaign_psu_log in enumerate(campaign_psu_logs.campaign_psu_logs):
+        # psuRawPlotVA(campaign_psu_log.psu_logs, -0.5, 0.5, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
+        # psuRawPlot(campaign_psu_log.psu_logs, -5, 10, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
 
     campaign_iot_logs.getPuschTimes(lim=50)
     campaign_iot_logs.getPdcchTimes(lim=50)
 
     campaign_iot_logs.getMeanAndDeviation(campaign_psu_logs)
 
+    if saveToPickle == True:
+        with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+            pickle.dump(campaign_psu_logs, file)
+
     for campaign_psu_log, campaign_iot_log in zip(campaign_psu_logs.campaign_psu_logs, campaign_iot_logs.campaign_iot_logs):
         all_times = campaign_iot_log.importantIndexes.getAllTimesList()
         #all_times.append(campaign_iot_log.getPdschTimes())
         #all_times.append(campaign_iot_log.getPucchTimes())
 
-        print(f"For power transmission: {campaign_iot_log.p_max}\n"
+        print(f"For power transmission: {campaign_iot_log.p_max}dBm\n"
               f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean}\n"
               f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median}\n"
               f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min}\n"
@@ -145,7 +152,7 @@ def myMain():
               f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation}\n"
               "--------------------------------------------------------------------")
 
-        psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.25, y_max=3, lines_array=all_times)
+        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=2, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
         
 
     return 1

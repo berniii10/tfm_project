@@ -67,14 +67,8 @@ class CampaignIotLogs:
 
     def sortNonPhyLogEntries(self):
 
-        start_time = time.time()
-
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.sortNonPhyLogEntries()
-            print(f"Time to sort Non Phy Log entries: {time.time() - start_time}")
-
-        end_time = time.time()
-        elapsed_time = end_time - start_time
 
         print(f"All threads have finished execution")
 
@@ -564,7 +558,7 @@ class IotLogs:
 
         for i, (layer, message, extrainfo) in enumerate(zip(self.layer, self.message, self.extrainfo)):
 
-            if layer == Layer.NAS and 'Registration request' in message and found1 == 0:
+            if layer == Layer.NAS and 'Registration accept' in message and found1 == 0:
                 for j in range(i, i+100, 1):
 
                     if self.info[j] == 'PDCCH' and self.layer[j] == Layer.PHY and 'dci=0_' in self.extrainfo[j]:
@@ -701,6 +695,7 @@ class IotLogs:
 
         psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
         psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
+        min_index = None
 
         powers = []
         for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
@@ -711,12 +706,18 @@ class IotLogs:
                     break
                 powers.append(power)
 
+                # Update min_index if the current power is the minimum so far
+                if min_index is None or power > psu_powers[min_index]:
+                    min_index = i
+
         self.p_tx_mean = np.mean(powers)
         self.p_tx_min = min(powers)
         self.p_tx_max = max(powers)
         self.p_tx_standard_deviation = np.std(powers)
         self.p_tx_powers = powers
         self.p_tx_median = np.median(powers)
+
+        print("Mean and Deviation Calculated")
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

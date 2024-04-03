@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -132,3 +133,24 @@ def psuRawPlotWithLinesArray(psu_logs, y_min=None, y_max=None, lines_array=None,
         #    break
     
     plotWithLines(time, power, "Time [s]", "Power [W]", "Raw PSU Plot", y_max, lines_array, y_min_lim, y_max_lim)
+
+def plotConfidenceInterval(x_values, y_values, lower_ci, upper_ci):
+    x_values = np.array(x_values)
+    y_values = np.array(y_values)
+    lower_ci = np.array(lower_ci)
+    upper_ci = np.array(upper_ci)
+    # Plot data points
+    plt.scatter(x_values, y_values, color='blue', label='Data (Mean)')
+
+    # Plot error bars for confidence intervals
+    plt.errorbar(x_values, y_values, yerr=[y_values - lower_ci, upper_ci - y_values], fmt='.', color='red', label='95% CI')
+
+    # Add labels and legend
+    plt.xlabel('X-axis')
+    plt.ylabel('Y-axis')
+    plt.title('Plot with Confidence Intervals')
+    plt.legend()
+
+    # Show plot
+    plt.grid(True)
+    plt.show()

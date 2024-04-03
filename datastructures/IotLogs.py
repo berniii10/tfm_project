@@ -177,7 +177,6 @@ class IotLogs:
         self.p_tx_min = 0
         self.p_tx_max = 0
         self.p_tx_standard_deviation = 0
-        self.p_tx_powers = 0
         self.p_tx_median = 0
         self.p_tx_confidence_interval = 0
 
@@ -724,7 +723,6 @@ class IotLogs:
         self.p_tx_min = min(self.powers)
         self.p_tx_max = max(self.powers)
         self.p_tx_standard_deviation = np.std(self.powers)
-        self.p_tx_powers = self.powers
         self.p_tx_median = np.median(self.powers)
         self.p_tx_confidence_interval = stats.norm.interval(0.95, loc=self.p_tx_mean, scale=stats.sem(self.powers))
         self.cdf_values = norm.cdf(self.powers)

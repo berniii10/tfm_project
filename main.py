@@ -20,7 +20,7 @@ campaign_iot_logs = CampaignIotLogs()
 load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
 load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = True
+saveToPickle = False
 
 
 def iotPostProcessing(myDb):
@@ -130,16 +130,20 @@ def myMain():
         # psuRawPlotVA(campaign_psu_log.psu_logs, -0.5, 0.5, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
         # psuRawPlot(campaign_psu_log.psu_logs, -5, 10, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
 
-    campaign_iot_logs.getPuschTimes(lim=50)
-    campaign_iot_logs.getPdcchTimes(lim=50)
 
-    campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-    campaign_iot_logs.getMeanAndDeviation()
+    # campaign_iot_logs.getPuschTimes(lim=50)
+    # campaign_iot_logs.getPdcchTimes(lim=50)
+
+    # campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
+    # campaign_iot_logs.getMeanAndDeviation()
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
+    mean = []
+    lower_ci = []
+    upper_ci = []
     median = []
     mcs_indexes = []
     p_tx = []
@@ -160,12 +164,16 @@ def myMain():
               "--------------------------------------------------------------------")
 
         # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=2, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+        mean.append(campaign_iot_log.p_tx_mean)
+        lower_ci.append(campaign_iot_log.p_tx_confidence_interval[0])
+        upper_ci.append(campaign_iot_log.p_tx_confidence_interval[1])
         median.append(campaign_iot_log.p_tx_median)
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
 
     # simplePlot(mcs_indexes, median, "MCS Indexes", "Power Consumption [W]", "Power based on MCS Index")
     simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
+    plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     return 1
 

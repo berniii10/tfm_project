@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 461 # 425
+campaign_id = 535 # 425
 
 Iot = True
 Psu = True
@@ -171,9 +171,9 @@ def myMain():
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
 
-    # simplePlot(mcs_indexes, median, "MCS Indexes", "Power Consumption [W]", "Power based on MCS Index")
-    simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
-    plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
+    simplePlot(mcs_indexes, median, "MCS Indexes", "Power Consumption [W]", "Power based on MCS Index", scatter=1)
+    # simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
+    #plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     return 1
 

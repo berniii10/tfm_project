@@ -729,6 +729,9 @@ class IotLogs:
 
         print("Mean and Deviation Calculated")
 
+    def saveDataForTraining(self):
+        pass
+
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):
         self.resulttypeid = int(resulttypeid)

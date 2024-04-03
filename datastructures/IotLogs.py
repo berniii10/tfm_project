@@ -3,6 +3,8 @@ import re
 import csv
 import time
 import pickle
+from scipy.stats import norm
+from scipy import stats
 import threading
 import numpy as np
 from psycopg2 import Error
@@ -121,9 +123,13 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             return campaign_iot_log.getPucchTimes()
         
-    def getMeanAndDeviation(self, campaign_psu_log):
+    def getAllPuschPowers(self, campaign_psu_log):
         for campaign_iot_log, campaign_psu_log in zip(self.campaign_iot_logs, campaign_psu_log.campaign_psu_logs):
-            campaign_iot_log.getMeanAndDeviation(campaign_psu_log)
+            campaign_iot_log.getAllPuschPowers(campaign_psu_log)
+    
+    def getMeanAndDeviation(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getMeanAndDeviation()
 
 class IotLogs:
 
@@ -166,12 +172,14 @@ class IotLogs:
         self.bw = 0
         self.freq_band = 0
 
+        self.powers = []
         self.p_tx_mean = 0
         self.p_tx_min = 0
         self.p_tx_max = 0
         self.p_tx_standard_deviation = 0
         self.p_tx_powers = 0
         self.p_tx_median = 0
+        self.p_tx_confidence_interval = 0
 
         if iot_logs != None:
             self.loadIotData(iot_logs=iot_logs)
@@ -664,6 +672,24 @@ class IotLogs:
                     aux.append(self.timeIot[i])
         return aux
     
+    def double_points_by_average(self, measurements):
+        doubled_measurements = []
+
+        # Iterate over pairs of consecutive measurements
+        for i in range(len(measurements) - 1):
+            # Add the current measurement
+            doubled_measurements.append(measurements[i])
+
+            # Calculate the average between the current and next measurement
+            average_measurement = (measurements[i] + measurements[i + 1]) / 2.0
+            # Add the average measurement
+            doubled_measurements.append(average_measurement)
+
+        # Add the last measurement from the original list
+        doubled_measurements.append(measurements[-1])
+
+        return doubled_measurements
+
     def getPowerOfPusch(self, index, psu_times, psu_powers):
 
         timePusch = self.timeIot[index]
@@ -676,46 +702,32 @@ class IotLogs:
             # print("No powers found within the specified time range") #Means we are at the end, and beyond
             return -1
         
+        # doubled_powers = self.double_points_by_average(relevant_powers)
+        
         return np.mean(relevant_powers)
-
-        """
-        timePusch = self.timeIot[index]
-        timePuschEnd = timePusch + 0.0005
-        mean_power = []
-
-        for psu_log in psu_logs.psu_logs:
-            if psu_log.time_psu > timePusch and psu_log.time_psu < timePuschEnd:
-                mean_power.append(psu_log.power)
-
-        return sum(mean_power)/len(mean_power)
-        """
-
-
-    def getMeanAndDeviation(self, psu_logs):
-
+    
+    def getAllPuschPowers(self, psu_logs):
         psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
         psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
-        min_index = None
-
-        powers = []
+        
         for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
             if Channel.PUSCH.value in info:
 
                 power = self.getPowerOfPusch(i, psu_times, psu_powers)
                 if power == -1:
                     break
-                powers.append(power)
+                self.powers.append(power)
 
-                # Update min_index if the current power is the minimum so far
-                if min_index is None or power > psu_powers[min_index]:
-                    min_index = i
+    def getMeanAndDeviation(self):
 
-        self.p_tx_mean = np.mean(powers)
-        self.p_tx_min = min(powers)
-        self.p_tx_max = max(powers)
-        self.p_tx_standard_deviation = np.std(powers)
-        self.p_tx_powers = powers
-        self.p_tx_median = np.median(powers)
+        self.p_tx_mean = np.mean(self.powers)
+        self.p_tx_min = min(self.powers)
+        self.p_tx_max = max(self.powers)
+        self.p_tx_standard_deviation = np.std(self.powers)
+        self.p_tx_powers = self.powers
+        self.p_tx_median = np.median(self.powers)
+        self.p_tx_confidence_interval = stats.norm.interval(0.95, loc=self.p_tx_mean, scale=stats.sem(self.powers))
+        self.cdf_values = norm.cdf(self.powers)
 
         print("Mean and Deviation Calculated")
 

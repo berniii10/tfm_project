@@ -20,7 +20,7 @@ campaign_iot_logs = CampaignIotLogs()
 load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
 load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = False
+saveToPickle = True
 
 
 def iotPostProcessing(myDb):
@@ -50,9 +50,9 @@ def iotPostProcessing(myDb):
     # campaign_iot_logs.getAllNas()
     campaign_iot_logs.getRegistrationCompleteIndexTime()
 
-    #if saveToPickle == True:
-    #    with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-    #        pickle.dump(campaign_iot_logs, file)
+    if saveToPickle == True:
+        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+            pickle.dump(campaign_iot_logs, file)
 
     campaign_iot_logs.saveToCsv()
 
@@ -133,27 +133,39 @@ def myMain():
     campaign_iot_logs.getPuschTimes(lim=50)
     campaign_iot_logs.getPdcchTimes(lim=50)
 
-    campaign_iot_logs.getMeanAndDeviation(campaign_psu_logs)
+    campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
+    campaign_iot_logs.getMeanAndDeviation()
 
     if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-            pickle.dump(campaign_psu_logs, file)
+        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+            pickle.dump(campaign_iot_logs, file)
+
+    median = []
+    mcs_indexes = []
+    p_tx = []
 
     for campaign_psu_log, campaign_iot_log in zip(campaign_psu_logs.campaign_psu_logs, campaign_iot_logs.campaign_iot_logs):
         all_times = campaign_iot_log.importantIndexes.getAllTimesList()
         #all_times.append(campaign_iot_log.getPdschTimes())
         #all_times.append(campaign_iot_log.getPucchTimes())
 
-        print(f"For power transmission: {campaign_iot_log.p_max}dBm\n"
-              f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean}\n"
-              f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median}\n"
-              f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min}\n"
-              f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max}\n"
-              f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation}\n"
+        print(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
+              f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
+              f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median:.3f} [W]\n"
+              f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min:.3f} [W]\n"
+              f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max:.3f} [W]\n"
+              f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation:.3f} or {campaign_iot_log.p_tx_standard_deviation*100/campaign_iot_log.p_tx_mean:.3f}%\n"
+              f"- Confidence Interval Low {campaign_iot_log.p_tx_confidence_interval[0]:.3f}\n"
+              f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
               "--------------------------------------------------------------------")
 
         # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=2, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
-        
+        median.append(campaign_iot_log.p_tx_median)
+        mcs_indexes.append(campaign_iot_log.mcs_index)
+        p_tx.append(campaign_iot_log.p_max)
+
+    # simplePlot(mcs_indexes, median, "MCS Indexes", "Power Consumption [W]", "Power based on MCS Index")
+    simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
 
     return 1
 

@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-def simplePlot(x_values, y_values, x_label, y_label, plot_title, x_lim_min=None, x_lim_max=None):
+def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=None, x_lim_max=None):
     # Create a line plot
-    # plt.scatter(x_values, y_values, label='Power Samples', s=0.5, zorder=2)
-    plt.plot(x_values, y_values, label='Power Samples', zorder=2)
+    if plot_title != None: 
+        plt.plot(x_values, y_values, label='Power Samples', zorder=2)
+    else:
+        plt.plot(x_values, y_values, label=plot_title, zorder=2)
 
     if x_lim_min != None:
         plt.axvline(x=x_lim_min, color='r', linestyle='--')  # Red dashed line at x_lim_min

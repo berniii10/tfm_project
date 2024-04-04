@@ -310,13 +310,7 @@ class IotLogs:
                     indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[max_index]
                 else:
                     return -1
-                """
-                for u in range(len(self.phy_nonsib_indexes)-1, 0, -1):
-                    if (self.non_phy_indexes[i] > self.phy_nonsib_indexes[u]):
-
-                        indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u] # We do not need to check if phy_nonsib_indexes[0] is bigger than non_phy_indexes[i] since that is already taken care of in "Check for DUT activity before PRACH" above
-                        break; # Break for loop  
-                """                    
+                                   
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
                     print("Rogue Non-PHY message detected")
@@ -325,13 +319,6 @@ class IotLogs:
             elif direction == Direction.DL and (layer == Layer.MAC or layer == Layer.RRC or layer == Layer.NAS):
                 # Find the max index value in phy_nonsib_indexes that are still less than non_phy_indexes[i]
                 if "SIB" in self.message[self.non_phy_indexes[i]]:
-                    """
-                    for u in range(0, len(self.phy_sib_indexes), 1):
-                        if (self.non_phy_indexes[i] < self.phy_sib_indexes[u]):
-
-                            indexOfPhyLayerEquivalentLogEntry = self.phy_sib_indexes[u]
-                            break; # Break for loop
-                    """
                     indices = np.where(non_phy_indexes_tmp[i] < phy_sib_indexes_tmp)[0]
 
                     if len(indices) > 0:
@@ -339,16 +326,10 @@ class IotLogs:
                         min_index = np.min(indices)
                         indexOfPhyLayerEquivalentLogEntry = phy_sib_indexes_tmp[min_index]
                     else:
-                        return None
+                        indexOfPhyLayerEquivalentLogEntry = phy_sib_indexes_tmp[-1]
+                        # return None
                     
                 else:
-                    """
-                    for u in range(0, len(self.phy_nonsib_indexes), 1):
-                        if (self.non_phy_indexes[i] < self.phy_nonsib_indexes[u] and "dci" not in self.message[self.phy_nonsib_indexes[u]]):
-                        
-                            indexOfPhyLayerEquivalentLogEntry = self.phy_nonsib_indexes[u]
-                            break; # Break for loop
-                    """
                     indices = np.where(non_phy_indexes_tmp[i] < phy_nonsib_indexes_without_dci_tmp)[0]
 
                     if len(indices) > 0:
@@ -373,14 +354,6 @@ class IotLogs:
             # Step 3: Append the corresponding tuple to self.non_phy_time_stamps_secs
             if len(index) > 0:
                 self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[index[0]][0], self.non_phy_indexes[i]))
-
-            """
-            for u in range(0, len(self.phy_time_in_secs_and_indexes_list), 1):
-                if (self.phy_time_in_secs_and_indexes_list[u][1] == indexOfPhyLayerEquivalentLogEntry): # This will always be true with one of the indexes so we do not need to check if we actually found a match later
-                    
-                    self.non_phy_time_stamps_secs.append((self.phy_time_in_secs_and_indexes_list[u][0], self.non_phy_indexes[i]))
-                    break; # Break for loop
-            """
             
         print("Sorted Non Phy Log entries")
         self.non_phy_time_stamps_secs = sorted(self.non_phy_time_stamps_secs, key=lambda x: x[0]) #Could also include the .Value like: phy_time_in_secs_and_indexes_list.OrderBy(e => e.Key).ThenBy(e => e.Value).ToList();
@@ -502,7 +475,7 @@ class IotLogs:
         print("Data Cleaned")
         
     def getPsuMax(self):
-        pattern = r'p-Max\s+(\d+)'
+        pattern = r'p-Max\s+(-?\d+)'
         pmax = -50
 
         for i, message in enumerate(self.message):
@@ -574,6 +547,7 @@ class IotLogs:
                         if mcs:
                             self.mcs_index = int(mcs.group(1))
                             found1 = 1
+                            break
                         
 
             if layer == Layer.RRC and 'RRC reconfiguration' in message and found2 == 0:

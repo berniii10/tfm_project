@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 535 # 425
+campaign_id = 555 # 425
 
 Iot = True
 Psu = True
@@ -17,10 +17,10 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
-load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
-load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = False
+saveToPickle = True
 
 
 def iotPostProcessing(myDb):
@@ -66,6 +66,7 @@ def psuPostProcessing(myDb):
     campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
     
     if campaign_psu_logs.searchVoltageSpike() == -1:
+        print("No voltage spike found")
         return -1
     
     campaign_psu_logs.calculateTimePsuAndPower()
@@ -127,15 +128,15 @@ def myMain():
     # DATA is ready here for proper post processing
     
     # for i, campaign_psu_log in enumerate(campaign_psu_logs.campaign_psu_logs):
-        # psuRawPlotVA(campaign_psu_log.psu_logs, -0.5, 0.5, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
+        # psuRawPlotVA(campaign_psu_log.psu_logs, -0.5, 4, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
         # psuRawPlot(campaign_psu_log.psu_logs, -5, 10, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
 
+    if load_or_read_AllDataIot == False:
+        campaign_iot_logs.getPuschTimes(lim=50)
+        campaign_iot_logs.getPdcchTimes(lim=50)
 
-    # campaign_iot_logs.getPuschTimes(lim=50)
-    # campaign_iot_logs.getPdcchTimes(lim=50)
-
-    # campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-    # campaign_iot_logs.getMeanAndDeviation()
+        campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
+        campaign_iot_logs.getMeanAndDeviation()
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
@@ -163,7 +164,8 @@ def myMain():
               f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
               "--------------------------------------------------------------------")
 
-        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=2, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times""", y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max""")
+        psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times)
         mean.append(campaign_iot_log.p_tx_mean)
         lower_ci.append(campaign_iot_log.p_tx_confidence_interval[0])
         upper_ci.append(campaign_iot_log.p_tx_confidence_interval[1])
@@ -171,9 +173,9 @@ def myMain():
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
 
-    simplePlot(mcs_indexes, median, "MCS Indexes", "Power Consumption [W]", "Power based on MCS Index", scatter=1)
+    simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index")
     # simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
-    #plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
+    # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     return 1
 

@@ -7,12 +7,9 @@ from keras import layers
 
 class FnnMode():
 
-    def __init__(self, input_shape=None, num_layers=None, neurons_per_layer=None, activation_functions=None):
+    def __init__(self, input_shape, num_layers=None, neurons_per_layer=None, activation_functions=None):
 
-        if input_shape == None:
-            input_shape = (4,)
-        else:
-            input_shape = (input_shape,)
+        input_shape = (input_shape,)
         output_shape  = 1
 
         if num_layers == None or neurons_per_layer == None or activation_functions == None:
@@ -84,6 +81,10 @@ for num_layers in num_layers_list:
         # Create and train the model
         model = FnnMode(num_layers=num_layers, neurons_per_layer=neurons_per_layer)
         model.trainModel(x_train, y_train)
+
+        filename = f"saved_models/model_{num_layers}layers_{'_'.join(map(str, neurons_per_layer))}.h5"
+        model.saveModel(filename)
+
         all_models.append(model)
 
 # Plot loss for each model

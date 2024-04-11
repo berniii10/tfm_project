@@ -1,6 +1,7 @@
 # Files I do not want to push
 output*
 datastructures/files
+*csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

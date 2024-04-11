@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 555 # 425
+campaign_id = 541
 
 Iot = True
 Psu = True
@@ -17,10 +17,10 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
-load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
-load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = True
+saveToPickle = False
 
 
 def iotPostProcessing(myDb):
@@ -136,11 +136,16 @@ def myMain():
         campaign_iot_logs.getPdcchTimes(lim=50)
 
         campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-        campaign_iot_logs.getMeanAndDeviation()
+        campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
+        campaign_iot_logs.getMeanAndDeviationPusch()
+        campaign_iot_logs.getMeanAndDeviationPdsch()
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
+
+    campaign_iot_logs.saveMeanAndDeviationToCsv(campaign_id)
+    
 
     mean = []
     lower_ci = []
@@ -165,7 +170,7 @@ def myMain():
               "--------------------------------------------------------------------")
 
         # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times""", y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max""")
-        psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times)
+        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times)
         mean.append(campaign_iot_log.p_tx_mean)
         lower_ci.append(campaign_iot_log.p_tx_confidence_interval[0])
         upper_ci.append(campaign_iot_log.p_tx_confidence_interval[1])
@@ -173,8 +178,8 @@ def myMain():
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
 
-    simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index")
-    # simplePlot(p_tx, median, "Power Transmission", "Power Consumption [W]", "Power based on Power Transmission")
+    # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
+    # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     return 1

@@ -1,11 +1,10 @@
 import sys
 import re
+import os
 import csv
-import time
-import pickle
+from McsTable import mcs_table
 from scipy.stats import norm
 from scipy import stats
-import threading
 import numpy as np
 from psycopg2 import Error
 from datastructures.enums import *
@@ -125,10 +124,18 @@ class CampaignIotLogs:
     def getAllPuschPowers(self, campaign_psu_log):
         for campaign_iot_log, campaign_psu_log in zip(self.campaign_iot_logs, campaign_psu_log.campaign_psu_logs):
             campaign_iot_log.getAllPuschPowers(campaign_psu_log)
+
+    def getAllPdschPowers(self, campaign_psu_log):
+        for campaign_iot_log, campaign_psu_log in zip(self.campaign_iot_logs, campaign_psu_log.campaign_psu_logs):
+            campaign_iot_log.getAllPdschPowers(campaign_psu_log)
     
-    def getMeanAndDeviation(self):
+    def getMeanAndDeviationPusch(self):
         for campaign_iot_log in self.campaign_iot_logs:
-            campaign_iot_log.getMeanAndDeviation()
+            campaign_iot_log.getMeanAndDeviationPusch()
+
+    def getMeanAndDeviationPdsch(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            campaign_iot_log.getMeanAndDeviationPdsch()
 
     def saveMeanAndDeviationToCsv(self, name):
         all_lists = []
@@ -205,6 +212,14 @@ class IotLogs:
         self.p_tx_standard_deviation = 0
         self.p_tx_median = 0
         self.p_tx_confidence_interval = 0
+
+        self.powers_pdsch = []
+        self.p_rx_mean = 0
+        self.p_rx_min = 0
+        self.p_rx_max = 0
+        self.p_rx_standard_deviation = 0
+        self.p_rx_median = 0
+        self.p_rx_confidence_interval = 0
 
         if iot_logs != None:
             self.loadIotData(iot_logs=iot_logs)
@@ -670,24 +685,6 @@ class IotLogs:
                 if self.timeIot[i] > 0 and self.timeIot[i] < 10:
                     aux.append(self.timeIot[i])
         return aux
-    
-    def double_points_by_average(self, measurements):
-        doubled_measurements = []
-
-        # Iterate over pairs of consecutive measurements
-        for i in range(len(measurements) - 1):
-            # Add the current measurement
-            doubled_measurements.append(measurements[i])
-
-            # Calculate the average between the current and next measurement
-            average_measurement = (measurements[i] + measurements[i + 1]) / 2.0
-            # Add the average measurement
-            doubled_measurements.append(average_measurement)
-
-        # Add the last measurement from the original list
-        doubled_measurements.append(measurements[-1])
-
-        return doubled_measurements
 
     def getPowerOfPhysicalTransmission(self, index, psu_times, psu_powers):
 
@@ -727,9 +724,9 @@ class IotLogs:
                 power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
                 if power == -1:
                     break
-                self.powers.append(power)
+                self.powers_pdsch.append(power)
 
-    def getMeanAndDeviation(self):
+    def getMeanAndDeviationPusch(self):
 
         self.p_tx_mean = np.mean(self.powers)
         self.p_tx_min = min(self.powers)
@@ -737,12 +734,42 @@ class IotLogs:
         self.p_tx_standard_deviation = np.std(self.powers)
         self.p_tx_median = np.median(self.powers)
         self.p_tx_confidence_interval = stats.norm.interval(0.95, loc=self.p_tx_mean, scale=stats.sem(self.powers))
-        self.cdf_values = norm.cdf(self.powers)
+
+        print("Mean and Deviation Calculated")
+    
+    def getMeanAndDeviationPdsch(self):
+
+        self.p_rx_mean = np.mean(self.powers_pdsch)
+        self.p_rx_min = min(self.powers_pdsch)
+        self.p_rx_max = max(self.powers_pdsch)
+        self.p_rx_standard_deviation = np.std(self.powers_pdsch)
+        self.p_rx_median = np.median(self.powers_pdsch)
+        self.p_rx_confidence_interval = stats.norm.interval(0.95, loc=self.p_rx_mean, scale=stats.sem(self.powers_pdsch))
 
         print("Mean and Deviation Calculated")
 
-    def saveDataForTraining(self):
-        pass
+    def saveDataForTrainingPusch(self):
+        with open(os.path.join('DeepLearning','tx', 'data' + '.csv'), 'a', newline='') as file:
+            writer = csv.writer(file)
+            
+            for power in self.powers:
+                writer.writerows([
+                    self.p_max,
+                    mcs_table[f'{self.mcs_table}_{self.mcs_index}'],
+                    self.mimo,
+                    power,
+                ])
+
+    def saveDataForTrainingPdsch(self):
+        with open(os.path.join('DeepLearning','rx', 'data' + '.csv'), 'a', newline='') as file:
+            writer = csv.writer(file)
+            
+            for power in self.powers_pdsch:
+                writer.writerows([
+                    mcs_table[f'{self.mcs_table}_{self.mcs_index}'],
+                    self.mimo,
+                    power,
+                ])
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

@@ -115,7 +115,6 @@ class CampaignIotLogs:
             campaign_iot_log.getPdcchTimes(lim)
 
     def getPdschTimes(self):
-        aux = []
         for campaign_iot_log in self.campaign_iot_logs:
             return campaign_iot_log.getPdschTimes()
 
@@ -130,6 +129,33 @@ class CampaignIotLogs:
     def getMeanAndDeviation(self):
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.getMeanAndDeviation()
+
+    def saveMeanAndDeviationToCsv(self, name):
+        all_lists = []
+        for campaign_iot_log in self.campaign_iot_logs:
+            a = [
+                campaign_iot_log.p_max,
+                round(campaign_iot_log.p_tx_mean, 3),
+                round(campaign_iot_log.p_tx_median, 3),
+                round(campaign_iot_log.p_tx_standard_deviation, 3),
+                round(campaign_iot_log.p_tx_confidence_interval[0], 3),
+                round(campaign_iot_log.p_tx_confidence_interval[1], 3)
+            ]
+            all_lists.append(a)
+        csv_file_path = "meanAndDev" + str(name) + ".csv"
+
+        # Open the CSV file in write mode
+        with open(csv_file_path, mode='w', newline='') as file:
+            # Create a CSV writer object
+            writer = csv.writer(file, delimiter=',')
+            writer.writerow(["Pmax", "Mean", "Median", "Standard Deviation", "Confidence Interval Low", "Confidence Interval High"])
+            
+            # Write the first num_rows_to_save rows from the lists to the CSV file
+            for row in all_lists:
+                writer.writerow(row)
+
+    def saveDataToCsvForDeepLearningModel(self):
+        pass
 
 class IotLogs:
 
@@ -556,6 +582,8 @@ class IotLogs:
                 if mcs:
                     self.mcs_table = mcs.group(1)
                     found2 = 1
+                else: 
+                    self.mcs_table = 'qam64'
 
     def getMimo(self):
         pattern1 = r'maxMIMO-Layers\s+(\d+)'
@@ -596,7 +624,7 @@ class IotLogs:
                 self.importantIndexes.registration_complete_time = timeIot
 
     def saveToCsv(self, name):
-        all_lists = [self.frame, self.slot, self.info, self.layer, self.direction, self.extrainfo, self.timeIot]
+        all_lists = [self.frame, self.slot, self.info, self.layer, self.direction, self.message, self.extrainfo, self.timeIot]
         csv_file_path = "output" + str(name) + ".csv"
 
         # Define the number of rows to save
@@ -627,14 +655,12 @@ class IotLogs:
                 if self.timeIot[i] > -0.5 and self.timeIot[i] < lim:
                     self.importantIndexes.pdcch_times.append(self.timeIot[i])
 
-    def getPdschTimes(self):
-        aux = []
-        for i, info in enumerate(self.info):
+    def getPdschTimes(self, lim):
+        for i, info in enumerate(self.info,):
             if Channel.PDSCH.value in info:
                 #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
-                    aux.append(self.timeIot[i])
-        return aux
+                if self.timeIot[i] < lim:
+                    self.importantIndexes.pdsch_times.append(self.timeIot[i])
 
     def getPucchTimes(self):
         aux = []
@@ -663,12 +689,12 @@ class IotLogs:
 
         return doubled_measurements
 
-    def getPowerOfPusch(self, index, psu_times, psu_powers):
+    def getPowerOfPhysicalTransmission(self, index, psu_times, psu_powers):
 
-        timePusch = self.timeIot[index]
-        timePuschEnd = timePusch + 0.0005
+        time_transmission = self.timeIot[index]
+        time_transmission_end = time_transmission + 0.0005
 
-        mask = (psu_times > timePusch) & (psu_times < timePuschEnd)
+        mask = (psu_times > time_transmission) & (psu_times < time_transmission_end)
         relevant_powers = psu_powers[mask]
 
         if len(relevant_powers) == 0:
@@ -686,7 +712,19 @@ class IotLogs:
         for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
             if Channel.PUSCH.value in info:
 
-                power = self.getPowerOfPusch(i, psu_times, psu_powers)
+                power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
+                if power == -1:
+                    break
+                self.powers.append(power)
+    
+    def getAllPdschPowers(self, psu_logs):
+        psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
+        psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
+        
+        for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
+            if Channel.PDSCH.value in info:
+
+                power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
                 if power == -1:
                     break
                 self.powers.append(power)
@@ -737,6 +775,7 @@ class ImportantIndexes():
 
         self.pusch_times = []
         self.pdcch_times = []
+        self.pdsch_times = []
 
     def getAllTimesList(self):
         return [[self.prach_time], [self.registration_complete_time], self.pusch_times, self.pdcch_times]

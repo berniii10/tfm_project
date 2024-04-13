@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 541
+campaign_id = 560
 
 Iot = True
 Psu = True
@@ -76,6 +76,13 @@ def psuPostProcessing(myDb):
         with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_psu_logs, file)
 
+def getPsuAssociatedWithResultTypeId(resulttypeid):
+    global campaign_psu_logs
+    for campaign_psu_log in campaign_psu_logs.campaign_psu_logs:
+        if campaign_psu_log.psu_logs[0].resulttypeid == resulttypeid+1:
+            return campaign_psu_log
+
+
 def myMain():
     myDb = DbConnection.connectToDb()
     global Iot
@@ -131,14 +138,21 @@ def myMain():
         # psuRawPlotVA(campaign_psu_log.psu_logs, -0.5, 4, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
         # psuRawPlot(campaign_psu_log.psu_logs, -5, 10, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
 
+    if saveToPickle == True:
+        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+            pickle.dump(campaign_iot_logs, file)
+    
+    getPsuAssociatedWithResultTypeId(1365)
+
     if load_or_read_AllDataIot == False:
         campaign_iot_logs.getPuschTimes(lim=50)
+        # campaign_iot_logs.getPdschTimes(lim=50)
         campaign_iot_logs.getPdcchTimes(lim=50)
 
         campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-        campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
+        # campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
         campaign_iot_logs.getMeanAndDeviationPusch()
-        campaign_iot_logs.getMeanAndDeviationPdsch()
+        # campaign_iot_logs.getMeanAndDeviationPdsch()
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
@@ -181,6 +195,8 @@ def myMain():
     # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
+
+    campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
 
     return 1
 

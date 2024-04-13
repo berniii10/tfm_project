@@ -2,9 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=None, x_lim_max=None):
+def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=None, x_lim_max=None, scatter=None):
     # Create a line plot
-    plt.plot(x_values, y_values, label='Power Samples', zorder=2)
+    
+    if scatter == None:
+        plt.figure(figsize=(15, 10))
+        plt.plot(x_values, y_values, label='Power Samples', zorder=2)
+    else:
+        plt.figure(figsize=(15, 10))
+        plt.scatter(x_values, y_values, label='Power Samples', s=40, marker='x', zorder=2)
 
     if x_lim_min != None:
         plt.axvline(x=x_lim_min, color='r', linestyle='--')  # Red dashed line at x_lim_min
@@ -12,9 +18,13 @@ def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=
         plt.axvline(x=x_lim_max, color='g', linestyle='--')   # Green dotted line at x=4
 
     # Add labels and title
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.title(plot_title)
+    plt.xlabel(x_label, fontsize=16)
+    plt.ylabel(y_label, fontsize=16)
+    plt.title(plot_title, fontsize=20)
+
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+
     plt.grid(True, zorder=1)
 
     # Add a legend

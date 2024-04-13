@@ -12,7 +12,7 @@ def connectToDb():
         myDb = psycopg2.connect(
             user='admin', 
             password='alliot',
-            host='alliot-kontrondev.alb.is.keysight.com',
+            host='10.14.36.240',
             database='alliot-raw_meas',
             port=5432,
             connect_timeout=100)

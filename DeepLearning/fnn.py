@@ -7,20 +7,15 @@ from keras import layers
 
 class FnnMode():
 
-    def __init__(self, input_shape, num_layers=None, neurons_per_layer=None, activation_functions=None):
+    def __init__(self, input_shape, num_layers, neurons_per_layer, activation_function):
 
         input_shape = (input_shape,)
         output_shape  = 1
 
-        if num_layers == None or neurons_per_layer == None or activation_functions == None:
-            num_layers = 5
-            neurons_per_layer = [512, 256, 128, 64, 1]
-            activation_functions = ['relu']*6
-
         layers_list = [layers.Input(shape=input_shape)]
 
         for layer_index in range(num_layers):
-            layers_list.append(layers.Dense(neurons_per_layer[layer_index], activation=activation_functions[layer_index]))
+            layers_list.append(layers.Dense(neurons_per_layer[layer_index], activation=activation_function))
 
         layers_list.append(layers.Dense(output_shape, "linear"))
         
@@ -29,10 +24,10 @@ class FnnMode():
 
         self.model.compile(loss="mean_squared_error", optimizer="adam", metrics=["mae"])
 
-    def trainModel(self, x_trn, y_trn):
+    def trainModel(self, x_trn, y_trn, batch_size, epochs):
         
-        self.batch_size = 256
-        self.epochs = 10
+        self.batch_size = batch_size
+        self.epochs = epochs
 
         self.history = self.model.fit(x_trn, y_trn, batch_size=self.batch_size, epochs=self.epochs)
 
@@ -80,7 +75,7 @@ for num_layers in num_layers_list:
     for neurons_per_layer in neurons_per_layer_list:
         # Create and train the model
         model = FnnMode(num_layers=num_layers, neurons_per_layer=neurons_per_layer)
-        model.trainModel(x_train, y_train)
+        model.trainModel(x_train, y_train, batch_size=256, epochs=10)
 
         filename = f"saved_models/model_{num_layers}layers_{'_'.join(map(str, neurons_per_layer))}.h5"
         model.saveModel(filename)

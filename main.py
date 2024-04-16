@@ -9,7 +9,7 @@ from view.common import *
 import threading
 import time
 
-campaign_id = 560
+campaign_id = 184
 
 Iot = True
 Psu = True
@@ -17,44 +17,10 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
-load_or_read_AllDataIot = True # True loads data from Pickle, False reads everything from the DB
-load_or_read_AllDataPsu = True # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
+load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
 
-saveToPickle = False
-
-
-def iotPostProcessing(myDb):
-    sweeps = None
-    global Iot
-    global campaign_iot_logs
-
-    iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=1)
-
-    campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
-    #if campaign_iot_logs.searchPrach() == -1: # Check if PRACH exists before processing the data.
-    #    return -1
-
-    campaign_iot_logs.sortPhyLogEntries()
-    campaign_iot_logs.sortNonPhyLogEntries()
-    campaign_iot_logs.cleanData()
-
-    if campaign_iot_logs.searchPrach() == -1: # Update the index where the PRACH is found
-        return -1
-    campaign_iot_logs.updateTimeStamp()
-
-    # campaign_iot_logs.findHighestFrameAndSlot()
-    campaign_iot_logs.getPsuMax()
-    campaign_iot_logs.getMcs()
-    campaign_iot_logs.getMimo()
-    campaign_iot_logs.getFrequencyBand()
-    # campaign_iot_logs.getAllNas()
-    campaign_iot_logs.getRegistrationCompleteIndexTime()
-
-    if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-            pickle.dump(campaign_iot_logs, file)
-
-    campaign_iot_logs.saveToCsv()
+saveToPickle = True
 
 
 def psuPostProcessing(myDb):
@@ -76,12 +42,47 @@ def psuPostProcessing(myDb):
         with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_psu_logs, file)
 
-def getPsuAssociatedWithResultTypeId(resulttypeid):
-    global campaign_psu_logs
-    for campaign_psu_log in campaign_psu_logs.campaign_psu_logs:
-        if campaign_psu_log.psu_logs[0].resulttypeid == resulttypeid+1:
-            return campaign_psu_log
+def iotPostProcessing(myDb):
+    sweeps = None
+    global Iot
+    global campaign_iot_logs
 
+    iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=1)
+
+    campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
+    #if campaign_iot_logs.searchPrach() == -1: # Check if PRACH exists before processing the data.
+    #    return -1
+
+    campaign_iot_logs.sortPhyLogEntries()
+    campaign_iot_logs.sortNonPhyLogEntries()
+    campaign_iot_logs.cleanData()
+
+    if campaign_iot_logs.searchPrach() == -1: # Update the index where the PRACH is found
+        return -1
+    campaign_iot_logs.updateTimeStamp()
+
+    # campaign_iot_logs.findHighestFrameAndSlot()
+    campaign_iot_logs.getPMax()
+    campaign_iot_logs.getMcs()
+    campaign_iot_logs.getMimo()
+    campaign_iot_logs.getFrequencyBand()
+    # campaign_iot_logs.getAllNas()
+    campaign_iot_logs.getRegistrationCompleteIndexTime()
+
+    campaign_iot_logs.getPuschTimes(lim=50)
+    campaign_iot_logs.getPdcchTimes(lim=50)
+
+    campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
+    # campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
+    campaign_iot_logs.getMeanAndDeviationPusch()
+    # campaign_iot_logs.getMeanAndDeviationPdsch()
+
+    if saveToPickle == True:
+        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+            pickle.dump(campaign_iot_logs, file)
+
+    campaign_iot_logs.saveToCsv()
+    campaign_iot_logs.printMcsAndPmax()
 
 def myMain():
     myDb = DbConnection.connectToDb()
@@ -92,43 +93,28 @@ def myMain():
     global load_or_read_AllDataIot
     global load_or_read_AllDataPsu
 
-    # ----------- IOT -----------
-    if Iot ==  True:
-
-        if load_or_read_AllDataIot == False:
-            threadIot = threading.Thread(target=iotPostProcessing, args=(myDb,))
-            threadIot.start()
-
-        elif load_or_read_AllDataIot == True:
-            with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
-                campaign_iot_logs = pickle.load(file)
-            
-        Iot = False
-    # ----------- IOT -----------
-
-
-    # ----------- PSU -----------
+        # ----------- PSU -----------
     if Psu == True:
 
         if load_or_read_AllDataPsu == False:
-            threadPsu = threading.Thread(target=psuPostProcessing, args=(myDb,))
-            threadPsu.start()
+            psuPostProcessing(myDb=myDb)
         
         elif load_or_read_AllDataIot == True:
             with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
                 campaign_psu_logs = pickle.load(file)
-
-        if load_or_read_AllDataPsu == False:
-            threadPsu.join()
-
-        Psu = False
     # ----------- PSU -----------
+
+    # ----------- IOT -----------
+    if Iot ==  True:
+
+        if load_or_read_AllDataIot == False:
+            iotPostProcessing(myDb=myDb)
+
+        elif load_or_read_AllDataIot == True:
+            with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+                campaign_iot_logs = pickle.load(file)
+    # ----------- IOT -----------
     
-    if load_or_read_AllDataIot == False:
-        threadIot.join()
-    
-    while Psu == True and Iot == True:
-        time.sleep(10)
 
     # psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, x_lim_min=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.prach_time, x_lim_max=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.registration_complete_time)
 
@@ -142,17 +128,7 @@ def myMain():
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
     
-    getPsuAssociatedWithResultTypeId(1365)
-
-    if load_or_read_AllDataIot == False:
-        campaign_iot_logs.getPuschTimes(lim=50)
-        # campaign_iot_logs.getPdschTimes(lim=50)
-        campaign_iot_logs.getPdcchTimes(lim=50)
-
-        campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-        # campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
-        campaign_iot_logs.getMeanAndDeviationPusch()
-        # campaign_iot_logs.getMeanAndDeviationPdsch()
+    # getPsuAssociatedWithResultTypeId(1365)
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
@@ -160,7 +136,6 @@ def myMain():
 
     campaign_iot_logs.saveMeanAndDeviationToCsv(campaign_id)
     
-
     mean = []
     lower_ci = []
     upper_ci = []

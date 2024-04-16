@@ -73,7 +73,7 @@ class PsuLogs:
         found = -1
         for i, psu_log in enumerate(self.psu_logs):
             # if psu_log.amperes > 0.3: #0.275:
-            if psu_log.volts > 1: #0.275:
+            if psu_log.volts > 0.75: #0.275:
                 self.psu_time_offset = psu_log.starttime
                 print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1

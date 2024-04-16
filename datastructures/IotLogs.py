@@ -131,9 +131,9 @@ class CampaignIotLogs:
 
         print(f"All threads have finished execution")
 
-    def getPsuMax(self):
+    def getPMax(self):
         for campaign_iot_log in self.campaign_iot_logs:
-            campaign_iot_log.getPsuMax()
+            campaign_iot_log.getPMax()
 
     def cleanData(self):
         for campaign_iot_log in self.campaign_iot_logs:
@@ -179,6 +179,11 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             return campaign_iot_log.getPucchTimes()
         
+    def getPsuAssociatedWithResultTypeId(resulttypeid, campaign_psu_logs):
+        for campaign_psu_log in campaign_psu_logs.campaign_psu_logs:
+            if campaign_psu_log.psu_logs[0].resulttypeid == resulttypeid+1:
+                return campaign_psu_log
+
     def getAllPuschPowers(self, campaign_psu_log):
         for campaign_iot_log, campaign_psu_log in zip(self.campaign_iot_logs, campaign_psu_log.campaign_psu_logs):
             campaign_iot_log.getAllPuschPowers(campaign_psu_log)
@@ -226,6 +231,10 @@ class CampaignIotLogs:
     def saveDataToCsvForDeepLearningModelPdsch(self):
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.saveDataForTrainingPdsch()
+
+    def printMcsAndPmax(self):
+        for campaign_iot_log in self.campaign_iot_logs:
+            print(f"Pmax: {campaign_iot_log.p_max} and MCS: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}")
 
 class IotLogs:
 
@@ -578,7 +587,7 @@ class IotLogs:
         self.timeIot = timeIot
         print("Data Cleaned")
         
-    def getPsuMax(self):
+    def getPMax(self):
         pattern = r'p-Max\s+(-?\d+)'
         pmax = -50
 
@@ -817,10 +826,7 @@ class IotLogs:
             
             for power in self.powers:
                 writer.writerows([
-                    self.p_max,
-                    mcs_table_conversion[f'{self.mcs_table}_{self.mcs_index}'],
-                    self.mimo,
-                    power,
+                    [self.p_max, mcs_table_conversion[f'{self.mcs_table}_{self.mcs_index}'], self.mimo, power,]
                 ])
 
     def saveDataForTrainingPdsch(self):

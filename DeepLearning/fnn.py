@@ -1,9 +1,12 @@
 #Import modules
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 class FnnMode():
 
@@ -60,6 +63,71 @@ class FnnMode():
 
         return score
     
+def getDataNormalizeAndSplit():
+    # Step 1: Read the CSV file
+    data = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
+
+    # Step 2: Split the data into training and testing sets and shuffle it
+    train_data, test_data = train_test_split(data, test_size=0.3, random_state=42, shuffle=True)
+
+    # Optionally, you can reset the index of the DataFrames
+    train_data.reset_index(drop=True, inplace=True)
+    test_data.reset_index(drop=True, inplace=True)
+
+    # Step 3: Split the training and testing data into features and labels
+    train_label = train_data['label']  # Extract the target variable for training
+    train_data = train_data.drop('label', axis=1)  # Remove the target variable from the training features
+
+    test_label = test_data['label']  # Extract the target variable for testing
+    test_data = test_data.drop('label', axis=1)  # Remove the target variable from the testing features
+
+    """
+    # Basic inspection of the DataFrame
+    print(data.head())  # Display the first few rows
+    print(data.info())   # Display column names, data types, and non-null counts
+    print(data.describe())  # Display summary statistics for numerical columns
+
+    print("Training data shape:", train_data.shape)
+    print("Training label shape:", train_label.shape)
+    print("Testing data shape:", test_data.shape)
+    print("Testing label shape:", test_label.shape)
+
+    print("Training label statistics:")
+    print(train_label.describe())
+    print("Testing label statistics:")
+    print(test_label.describe())
+
+    plt.hist(train_label, bins=20, alpha=0.5, label='Training Label')
+    plt.hist(test_label, bins=20, alpha=0.5, label='Testing Label')
+    plt.legend()
+    plt.xlabel('Label')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of Labels')
+    plt.show(block=True)
+
+    print("Training data statistics:")
+    print(train_data.describe())
+    print("Testing data statistics:")
+    print(test_data.describe())
+
+    print("Missing values in training data:")
+    print(train_data.isnull().sum())
+    print("Missing values in testing data:")
+    print(test_data.isnull().sum())
+    """
+
+    return train_data, train_label, test_data, test_label
+
+def firstSimpleModel():
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
+
+    model = FnnMode(num_layers=5, neurons_per_layer=[512, 256, 128, 64, 1])
+    model.trainModel(x_train, y_train, batch_size=256, epochs=10)
+    model.evaluateModel()
+
+
+
+
 """
 For the caller of the function:
 

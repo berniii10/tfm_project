@@ -2,14 +2,13 @@ import os
 import pickle
 import numpy as np
 import database.DbConnection as DbConnection
+from DeepLearning.fnn import *
 from datastructures.IotLogs import CampaignIotLogs
 from datastructures.PsuLog import CampaignPsuLogs
 from datastructures.enums import Layer
 from view.common import *
-import threading
-import time
 
-campaign_id = 184
+campaign_id = 4
 
 Iot = True
 Psu = True
@@ -176,4 +175,5 @@ def myMain():
     return 1
 
 if __name__ == "__main__":
-    myMain()
+    # myMain()
+    firstSimpleModel()

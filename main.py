@@ -176,4 +176,6 @@ def myMain():
 
 if __name__ == "__main__":
     # myMain()
-    firstSimpleModel()
+    # firstSimpleModel()
+    # evaluateBestModel()
+    minimizeDataSet()

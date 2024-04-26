@@ -1,5 +1,5 @@
 #Import modules
-import os
+import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -20,12 +20,13 @@ class FnnMode():
         for layer_index in range(num_layers):
             layers_list.append(layers.Dense(neurons_per_layer[layer_index], activation=activation_function))
 
-        layers_list.append(layers.Dense(output_shape, "linear"))
+        layers_list.append(layers.Dense(output_shape, activation="linear"))
         
         self.model = keras.Sequential(layers_list, name="FNN")
         self.model.summary()
 
-        self.model.compile(loss="mean_squared_error", optimizer="adam", metrics=["mae"])
+        # self.model.compile(loss="mean_squared_error", optimizer=keras.optimizers.Adam(learning_rate=0.0005), metrics=["mae", "mse"])
+        self.model.compile(loss="mean_absolute_error", optimizer=keras.optimizers.Adam(learning_rate=0.0005), metrics=["mae", "mse"])
 
     def trainModel(self, x_trn, y_trn, batch_size, epochs):
         
@@ -37,9 +38,9 @@ class FnnMode():
     def getLossAndAccuracy(self):
 
         trn_loss = np.array(self.history.history["loss"])
-        trn_acc = np.array(self.history.history["accuracy"])
+        trn_mae = np.array(self.history.history["mae"])
 
-        return trn_loss, trn_acc
+        return trn_loss, trn_mae
     
     def plotLossAndAccuracy(self, trn_loss, trn_acc):
 
@@ -47,41 +48,24 @@ class FnnMode():
         fig, ax1 = plt.subplots()
         ax2 = ax1.twinx()
         ax1.plot(np.arange(self.epochs)+1, trn_loss, 'b-', label = "Loss")
-        ax2.plot(np.arange(self.epochs)+1, 100*trn_acc, 'g-', label = "Acc.")
+        ax2.plot(np.arange(self.epochs)+1, trn_acc, 'g-', label = "MAE")
 
         ax1.set_xlabel("Epochs")
         ax1.set_ylabel("Training Loss")
-        ax2.set_ylabel("Training Accuracy")
+        ax2.set_ylabel("Training MAE")
 
         fig.legend()
+        plt.show(block=True)
 
     def evaluateModel(self, x_tst, y_tst):
 
         score = self.model.evaluate(x_tst, y_tst, verbose=0)
         print("Test loss:", score[0])
-        print("Test accuracy:", score[1]*100)
+        print("Test MAE:", score[1])
 
         return score
     
-def getDataNormalizeAndSplit():
-    # Step 1: Read the CSV file
-    data = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
-
-    # Step 2: Split the data into training and testing sets and shuffle it
-    train_data, test_data = train_test_split(data, test_size=0.3, random_state=42, shuffle=True)
-
-    # Optionally, you can reset the index of the DataFrames
-    train_data.reset_index(drop=True, inplace=True)
-    test_data.reset_index(drop=True, inplace=True)
-
-    # Step 3: Split the training and testing data into features and labels
-    train_label = train_data['label']  # Extract the target variable for training
-    train_data = train_data.drop('label', axis=1)  # Remove the target variable from the training features
-
-    test_label = test_data['label']  # Extract the target variable for testing
-    test_data = test_data.drop('label', axis=1)  # Remove the target variable from the testing features
-
-    """
+def getInfoFromData(data, train_data, train_label, test_data, test_label):
     # Basic inspection of the DataFrame
     print(data.head())  # Display the first few rows
     print(data.info())   # Display column names, data types, and non-null counts
@@ -114,17 +98,137 @@ def getDataNormalizeAndSplit():
     print(train_data.isnull().sum())
     print("Missing values in testing data:")
     print(test_data.isnull().sum())
-    """
 
-    return train_data, train_label, test_data, test_label
+    
+def getDataNormalizeAndSplit(cut_data_set=None, display_info=None):
+    test_size=0.3
+
+    # Step 1: Read the CSV file
+    data = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
+
+    data = data.sample(frac=1).reset_index(drop=True)
+
+    if cut_data_set != None:
+        data = data.sample(frac=cut_data_set).reset_index(drop=True)
+        if cut_data_set <= 0.1:
+            test_size = 0.1
+
+    # Step 2: Split the data into training and testing sets and shuffle it
+    train_data, test_data = train_test_split(data, test_size=test_size, random_state=42, shuffle=True)
+
+    # Optionally, you can reset the index of the DataFrames
+    train_data.reset_index(drop=True, inplace=True)
+    test_data.reset_index(drop=True, inplace=True)
+
+    # Step 3: Split the training and testing data into features and labels
+    train_label = train_data['label']  # Extract the target variable for training
+    train_data = train_data.drop('label', axis=1)  # Remove the target variable from the training features
+
+    test_label = test_data['label']  # Extract the target variable for testing
+    test_data = test_data.drop('label', axis=1)  # Remove the target variable from the testing features
+
+    # Step 4: Normalize the data using maximum values of each feature
+    max_values = train_data.max()
+    train_data_normalized = train_data / max_values
+    test_data_normalized = test_data / max_values
+
+    # Normalize the target variable using maximum value
+    max_label = train_label.max()
+    train_label_normalized = train_label / max_label
+    test_label_normalized = test_label / max_label
+
+    # Print lengths of train_data and test_data
+    print("Length of train_data:", len(train_data))
+    print("Length of test_data:", len(test_data))
+
+    print("Maximum values of each feature:")
+    print(max_values)
+    print("Maximum value of the target variable:")
+    print(max_label)
+
+    if display_info != None:
+        getInfoFromData(data, train_data, train_label, test_data, test_label)
+        # getInfoFromData(data, train_data_normalized, train_label_normalized, test_data_normalized, test_label_normalized)
+
+    return train_data_normalized, train_label_normalized, test_data_normalized, test_label_normalized
 
 def firstSimpleModel():
     x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
 
-    model = FnnMode(num_layers=5, neurons_per_layer=[512, 256, 128, 64, 1])
-    model.trainModel(x_train, y_train, batch_size=256, epochs=10)
-    model.evaluateModel()
+    model = FnnMode(input_shape=3, num_layers=6, neurons_per_layer=[512, 256, 128, 64, 16, 1], activation_function='relu')
+    model.trainModel(x_train, y_train, batch_size=256, epochs=5)
+    trn_loss, trn_mae = model.getLossAndAccuracy()
+    print(f"Training loss: {trn_loss}")
+    print(f"Training MAE: {trn_mae}")
 
+    model.plotLossAndAccuracy(trn_loss=trn_loss, trn_acc=trn_mae)
+
+    model.evaluateModel(x_test, y_test)
+
+
+def evaluateBestModel():
+    # Define the sweep parameters
+    num_layers_list = [2, 3, 4, 5]
+    neurons_per_layer_list = [[256, 32], [512, 256, 32], [512, 256, 128, 32], [512, 256, 128, 64, 16]]
+
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
+
+    # Create a list to store all the models
+    all_models = []
+
+    # Train each model and store it in the list
+    for num_layers, neurons_per_layer in zip(num_layers_list, neurons_per_layer_list):
+        print(f"Creating model for Num Layers: {num_layers} and Num Neurons: {neurons_per_layer}")
+        # Create and train the model
+        model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+        model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+
+        # filename = f"saved_models/model_{num_layers}layers_{'_'.join(map(str, neurons_per_layer))}.h5"
+        # model.saveModel(filename)
+
+        all_models.append(model)
+
+    # Plot loss and MAE for each model
+    plt.figure(figsize=(2, 2))
+    for i, (model, neurons_per_layer) in enumerate(zip(all_models, neurons_per_layer_list)):
+        # Get loss and MAE
+        trn_loss, trn_mae = model.getLossAndAccuracy()
+        
+        # Plot loss
+        label = f'Model {i+1}: {len(neurons_per_layer_list)} layers, {neurons_per_layer} neurons/layer'
+        plt.plot(np.arange(model.epochs) + 1, trn_loss, label=label)
+
+        # Plot MAE
+        plt.plot(np.arange(model.epochs) + 1, trn_mae, label=f'{label} - MAE', linestyle='--')
+
+    plt.xlabel('Epochs')
+    plt.ylabel('Training Metrics')
+    plt.title('Training Loss and MAE for Different Models')
+    plt.legend()
+    plt.show()
+
+    for i, (model, neurons_per_layer) in enumerate(zip(all_models, neurons_per_layer_list)):
+        print(f"For model with Layers: {len(neurons_per_layer)} and Neurons: {neurons_per_layer}")
+        trn_loss, trn_mae = model.getLossAndAccuracy()
+        print(f"Training loss: {trn_loss}")
+        print(f"Training MAE: {trn_mae}")
+        model.evaluateModel(x_test, y_test)
+
+def minimizeDataSet():
+    num_layers = 3
+    neurons_per_layer = [512, 256, 32]
+    test_mae = sys.float_info.min
+    cut_data_set = 0.1
+
+    while test_mae < 0.1:
+        x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(cut_data_set=cut_data_set)
+
+        model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+        model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+        score = model.evaluateModel(x_test, y_test)
+        print(f"For {cut_data_set*100}% of the dataset, the Loss achieved is: {score[0]} and the MAE: {score[1]}")
+
+        cut_data_set = cut_data_set-0.1
 
 
 

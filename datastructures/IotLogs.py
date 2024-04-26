@@ -782,7 +782,7 @@ class IotLogs:
             if Channel.PUSCH.value in info:
 
                 power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
-                if power == -1:
+                if power == -1 and i > self.importantIndexes.registration_complete_index + 2:
                     break
                 self.powers.append(power)
     

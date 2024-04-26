@@ -16,6 +16,8 @@ Psu = True
 campaign_psu_logs = CampaignPsuLogs()
 campaign_iot_logs = CampaignIotLogs()
 
+load_from_DB_or_csv = False # True loads the data from the DB, False loads the data from a CSV
+
 load_or_read_AllDataIot = False # True loads data from Pickle, False reads everything from the DB
 load_or_read_AllDataPsu = False # True loads data from Pickle, False reads everything from the DB
 
@@ -27,8 +29,17 @@ def psuPostProcessing(myDb):
     global Psu
     global campaign_psu_logs
 
-    psu_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=0)
-    campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
+    if load_from_DB_or_csv == True:
+        psu_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=0)
+        campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
+    elif load_from_DB_or_csv == False:
+        campaign_psu_logs.loadDataFromCsv()
+        time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+        amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+        volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+        # simplePlotTwoYValues(time, volts, amperes, "Time [s]", "Volts [V]", "Amperes [A]", "Voltage and Amperes registered")
+        simplePlot(time, volts, "Time [s]", "Voltage [V]")
+        simplePlot(time, amperes, "Time [s]", "Amperes [A]")
     
     if campaign_psu_logs.searchVoltageSpike() == -1:
         print("No voltage spike found")
@@ -38,7 +49,7 @@ def psuPostProcessing(myDb):
     # campaign_psu_logs.findTwoMaxValues()
 
     if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_psu_logs, file)
 
 def iotPostProcessing(myDb):
@@ -46,9 +57,13 @@ def iotPostProcessing(myDb):
     global Iot
     global campaign_iot_logs
 
-    iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=1)
+    if load_from_DB_or_csv == True:
+        iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=1)
+        campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
+    elif load_from_DB_or_csv == False:
+        campaign_iot_logs.loadDataFromCsv()
 
-    campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
+    
     #if campaign_iot_logs.searchPrach() == -1: # Check if PRACH exists before processing the data.
     #    return -1
 
@@ -77,7 +92,7 @@ def iotPostProcessing(myDb):
     # campaign_iot_logs.getMeanAndDeviationPdsch()
 
     if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
     campaign_iot_logs.saveToCsv()
@@ -99,7 +114,7 @@ def myMain():
             psuPostProcessing(myDb=myDb)
         
         elif load_or_read_AllDataIot == True:
-            with open(os.path.join('datastructures','files', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
                 campaign_psu_logs = pickle.load(file)
     # ----------- PSU -----------
 
@@ -110,7 +125,7 @@ def myMain():
             iotPostProcessing(myDb=myDb)
 
         elif load_or_read_AllDataIot == True:
-            with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
                 campaign_iot_logs = pickle.load(file)
     # ----------- IOT -----------
     
@@ -124,13 +139,13 @@ def myMain():
         # psuRawPlot(campaign_psu_log.psu_logs, -5, 10, title=f"P_max = {campaign_iot_logs.campaign_iot_logs[i].p_max}")
 
     if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
     
     # getPsuAssociatedWithResultTypeId(1365)
 
     if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
+        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
     campaign_iot_logs.saveMeanAndDeviationToCsv(campaign_id)
@@ -157,7 +172,7 @@ def myMain():
               f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
               "--------------------------------------------------------------------")
 
-        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times""", y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max""")
+        psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
         # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times)
         mean.append(campaign_iot_log.p_tx_mean)
         lower_ci.append(campaign_iot_log.p_tx_confidence_interval[0])
@@ -175,7 +190,7 @@ def myMain():
     return 1
 
 if __name__ == "__main__":
-    # myMain()
+    myMain()
     # firstSimpleModel()
     # evaluateBestModel()
-    minimizeDataSet()
+    # minimizeDataSet()

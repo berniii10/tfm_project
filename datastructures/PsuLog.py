@@ -1,3 +1,5 @@
+import os, glob
+import pandas as pd
 from psycopg2 import Error
 from database.DbConnection import *
 
@@ -38,6 +40,31 @@ class CampaignPsuLogs:
             self.campaign_psu_logs[0].loadPsuData(temp_psu_logs[next(iter(temp_psu_logs))])
         
         return 1
+    
+    def loadDataFromCsv(self):
+        pmax = 19
+        mcs_table = 'qam256'
+        mcs_index = 8
+        n_antenna_ul = 1
+        n_antenna_dl = 1
+        temp_psu_logs = []
+
+        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+        if matching_files:
+            if len(self.campaign_psu_logs) > 0:
+                self.campaign_psu_logs.append(PsuLogs())
+            else:
+                self.campaign_psu_logs = [PsuLogs()]
+
+            df = pd.read_csv(matching_files[0])
+            for i, row in df.iterrows():
+                temp_psu_logs.append(PsuLog(1, row['Start Time'], row['Amperes'], row['Volts'], row['Origin']))
+
+            self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
+        else: 
+            print("No matching files found.")
+            return -1
+
 
     def searchVoltageSpike(self):
         for campaign_psu_log in self.campaign_psu_logs:
@@ -73,7 +100,7 @@ class PsuLogs:
         found = -1
         for i, psu_log in enumerate(self.psu_logs):
             # if psu_log.amperes > 0.3: #0.275:
-            if psu_log.volts > 0.75: #0.275:
+            if psu_log.amperes > 0.65: #0.275:
                 self.psu_time_offset = psu_log.starttime
                 print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1

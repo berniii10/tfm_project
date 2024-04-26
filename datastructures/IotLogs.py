@@ -1,7 +1,5 @@
-import sys
-import re
-import os
-import csv
+import sys, re, os, csv, glob, math
+import pandas as pd
 from scipy.stats import norm
 from scipy import stats
 import numpy as np
@@ -104,6 +102,28 @@ class CampaignIotLogs:
         print("IoT Data loaded correctly")
         return 1
     
+    def loadDataFromCsv(self):
+        pmax = 19
+        mcs_table = 'qam256'
+        mcs_index = 8
+        n_antenna_ul = 1
+        n_antenna_dl = 1
+        temp_psu_logs = []
+
+        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+        if matching_files:
+            df = pd.read_csv(matching_files[0])
+            for i, row in df.iterrows():
+                temp_psu_logs.append(IotLog(1, row['TimeStamp'], row['Absolute Time'], row['Frame'], row['Slot'], row['UE_ID'], row['Layer'], row['Info'], row['Direction'], row['Message'], row['Extra Info'], i))
+
+            if len(self.campaign_iot_logs) > 0:
+                self.campaign_iot_logs.append(IotLogs(iot_logs=temp_psu_logs))
+            else:
+                self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
+        else: 
+            print("No matching files found.")
+            return -1
+
     def searchPrach(self):
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.searchPrach()
@@ -128,8 +148,6 @@ class CampaignIotLogs:
 
         for campaign_iot_log in self.campaign_iot_logs:
             campaign_iot_log.sortNonPhyLogEntries()
-
-        print(f"All threads have finished execution")
 
     def getPMax(self):
         for campaign_iot_log in self.campaign_iot_logs:
@@ -729,33 +747,37 @@ class IotLogs:
                 writer.writerow(row)
 
     def getPuschTimes(self, lim):
-        for i, info in enumerate(self.info,):
-            if Channel.PUSCH.value in info:
-                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] < lim:
-                    self.importantIndexes.pusch_times.append(self.timeIot[i])
+        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+            if Layer.PHY == layer:
+                if Channel.PUSCH.value in info:
+                    #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                    if self.timeIot[i] < lim:
+                        self.importantIndexes.pusch_times.append(self.timeIot[i])
 
     def getPdcchTimes(self, lim):
-        for i, info in enumerate(self.info):
-            if Channel.PDCCH.value in info:
-                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] > -0.5 and self.timeIot[i] < lim:
-                    self.importantIndexes.pdcch_times.append(self.timeIot[i])
+        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+            if Layer.PHY == layer:
+                if Channel.PDCCH.value in info:
+                    #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                    if self.timeIot[i] > -0.5 and self.timeIot[i] < lim:
+                        self.importantIndexes.pdcch_times.append(self.timeIot[i])
 
     def getPdschTimes(self, lim):
-        for i, info in enumerate(self.info,):
-            if Channel.PDSCH.value in info:
-                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] < lim:
-                    self.importantIndexes.pdsch_times.append(self.timeIot[i])
+        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+            if Layer.PHY == layer:
+                if Channel.PDSCH.value in info:
+                    #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                    if self.timeIot[i] < lim:
+                        self.importantIndexes.pdsch_times.append(self.timeIot[i])
 
     def getPucchTimes(self):
         aux = []
-        for i, info in enumerate(self.info):
-            if Channel.PUCCH.value in info:
-                #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                if self.timeIot[i] > 0 and self.timeIot[i] < 10:
-                    aux.append(self.timeIot[i])
+        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+            if Layer.PHY == layer:
+                if Channel.PUCCH.value in info:
+                    #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
+                    if self.timeIot[i] > 0 and self.timeIot[i] < 10:
+                        aux.append(self.timeIot[i])
         return aux
 
     def getPowerOfPhysicalTransmission(self, index, psu_times, psu_powers):
@@ -778,25 +800,27 @@ class IotLogs:
         psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
         psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
         
-        for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
-            if Channel.PUSCH.value in info:
+        for i, (info, layer) in enumerate(zip(self.info[self.importantIndexes.registration_complete_index:], self.layer[self.importantIndexes.registration_complete_index:]), start=self.importantIndexes.registration_complete_index):
+            if Layer.PHY == layer:
+                if Channel.PUSCH.value in info:
 
-                power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
-                if power == -1 and i > self.importantIndexes.registration_complete_index + 2:
-                    break
-                self.powers.append(power)
+                    power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
+                    if power == -1 and i > self.importantIndexes.registration_complete_index + 2:
+                        break
+                    self.powers.append(power)
     
     def getAllPdschPowers(self, psu_logs):
         psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
         psu_powers = np.array([psu_log.power for psu_log in psu_logs.psu_logs])
         
-        for i, info in enumerate(self.info[self.importantIndexes.registration_complete_index:], start=self.importantIndexes.registration_complete_index):
-            if Channel.PDSCH.value in info:
+        for i, (info, layer) in enumerate(zip(self.info[self.importantIndexes.registration_complete_index:], self.layer[self.importantIndexes.registration_complete_index:]), start=self.importantIndexes.registration_complete_index):
+            if Layer.PHY == layer:
+                if Channel.PDSCH.value in info:
 
-                power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
-                if power == -1:
-                    break
-                self.powers_pdsch.append(power)
+                    power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
+                    if power == -1:
+                        break
+                    self.powers_pdsch.append(power)
 
     def getMeanAndDeviationPusch(self):
 

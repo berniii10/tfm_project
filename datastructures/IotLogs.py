@@ -102,12 +102,7 @@ class CampaignIotLogs:
         print("IoT Data loaded correctly")
         return 1
     
-    def loadDataFromCsv(self):
-        pmax = 19
-        mcs_table = 'qam256'
-        mcs_index = 8
-        n_antenna_ul = 1
-        n_antenna_dl = 1
+    def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
         temp_psu_logs = []
 
         matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
@@ -415,7 +410,6 @@ class IotLogs:
         non_phy_indexes_tmp = np.array(self.non_phy_indexes)
         phy_nonsib_indexes_tmp = np.array(self.phy_nonsib_indexes)
         phy_sib_indexes_tmp = np.array(self.phy_sib_indexes)
-        # aux = len(self.phy_nonsib_indexes)-1 - (len(self.phy_nonsib_indexes)-1 - 200)
 
         phy_nonsib_indexes_without_dci = []
         for phy_nonsib_index in self.phy_nonsib_indexes:

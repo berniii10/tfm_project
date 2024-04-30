@@ -41,12 +41,7 @@ class CampaignPsuLogs:
         
         return 1
     
-    def loadDataFromCsv(self):
-        pmax = 19
-        mcs_table = 'qam256'
-        mcs_index = 8
-        n_antenna_ul = 1
-        n_antenna_dl = 1
+    def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
         temp_psu_logs = []
 
         matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
@@ -100,7 +95,7 @@ class PsuLogs:
         found = -1
         for i, psu_log in enumerate(self.psu_logs):
             # if psu_log.amperes > 0.3: #0.275:
-            if psu_log.amperes > 0.65: #0.275:
+            if psu_log.volts > 1.5: #0.275:
                 self.psu_time_offset = psu_log.starttime
                 print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1

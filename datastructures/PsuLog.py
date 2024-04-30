@@ -42,23 +42,28 @@ class CampaignPsuLogs:
         return 1
     
     def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
-        temp_psu_logs = []
+        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul, n_antenna_dl):
+                for mcs_table in mcs_table:
+                    for mcs_index in mcs_index:
+                        for pmax in pmax:
 
-        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
-        if matching_files:
-            if len(self.campaign_psu_logs) > 0:
-                self.campaign_psu_logs.append(PsuLogs())
-            else:
-                self.campaign_psu_logs = [PsuLogs()]
+                            temp_psu_logs = []
 
-            df = pd.read_csv(matching_files[0])
-            for i, row in df.iterrows():
-                temp_psu_logs.append(PsuLog(1, row['Start Time'], row['Amperes'], row['Volts'], row['Origin']))
+                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                            if matching_files:
+                                if len(self.campaign_psu_logs) > 0:
+                                    self.campaign_psu_logs.append(PsuLogs())
+                                else:
+                                    self.campaign_psu_logs = [PsuLogs()]
 
-            self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
-        else: 
-            print("No matching files found.")
-            return -1
+                                df = pd.read_csv(matching_files[0])
+                                for i, row in df.iterrows():
+                                    temp_psu_logs.append(PsuLog(1, row['Start Time'], row['Amperes'], row['Volts'], row['Origin']))
+
+                                self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
+                            else: 
+                                print("No matching files found for: " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                                return -1
 
 
     def searchVoltageSpike(self):

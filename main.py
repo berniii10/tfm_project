@@ -32,6 +32,7 @@ def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     if myDb != None:
         psu_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=0)
         campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
+
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
         campaign_psu_logs.loadDataFromCsv(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
     
@@ -54,6 +55,7 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     if myDb != None:
         iot_rows = DbConnection.getDataFromDb(myDb=myDb, campaign_id=campaign_id, iot_psu=1)
         campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
+
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
         campaign_iot_logs.loadDataFromCsv(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
 
@@ -98,38 +100,37 @@ def myMain():
     global campaign_iot_logs
     global campaign_psu_logs
     global load_data_from
+    
 
-    pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7]
-    mcs_table = ['qam64']
-    mcs_index = [12]
-    n_antenna_ul = [1]
-    n_antenna_dl = [1]
+    if load_data_from == 'CSV':
+            pmax = [21, 20, 19]
+            mcs_table = ['qam64']
+            mcs_index = [12]
+            n_antenna_ul = [1]
+            n_antenna_dl = [1]
+            
+            if Psu == True:
+                psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
 
-    for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul, n_antenna_dl):
-        for mcs_table in mcs_table:
-            for mcs_index in mcs_index:
-                for pmax in pmax:
+            if Iot ==  True:
+                iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
 
-                    if load_data_from == 'CSV':
-                        if Psu == True:
-                            psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
+    elif load_data_from == 'Pickle':
+        if Psu == True:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+                    campaign_psu_logs = pickle.load(file)
 
-                        if Iot ==  True:
-                            iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl) 
-                    elif load_data_from == 'Pickle':
-                        if Psu == True:
-                            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
-                                    campaign_psu_logs = pickle.load(file)
-                        if Iot ==  True:
-                            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
-                                    campaign_iot_logs = pickle.load(file)
-                    elif load_data_from == 'DB':
-                        myDb = DbConnection.connectToDb()
-                        if Psu == True:
-                            psuPostProcessing(myDb=myDb)
+        if Iot ==  True:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+                    campaign_iot_logs = pickle.load(file)
 
-                        if Iot ==  True:
-                            iotPostProcessing(myDb=myDb)         
+    elif load_data_from == 'DB':
+        myDb = DbConnection.connectToDb()
+        if Psu == True:
+            psuPostProcessing(myDb=myDb)
+
+        if Iot ==  True:
+            iotPostProcessing(myDb=myDb)         
 
     
     time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]

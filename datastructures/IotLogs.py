@@ -103,21 +103,26 @@ class CampaignIotLogs:
         return 1
     
     def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
-        temp_psu_logs = []
+        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul, n_antenna_dl):
+                for mcs_table in mcs_table:
+                    for mcs_index in mcs_index:
+                        for pmax in pmax:
 
-        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
-        if matching_files:
-            df = pd.read_csv(matching_files[0])
-            for i, row in df.iterrows():
-                temp_psu_logs.append(IotLog(1, row['TimeStamp'], row['Absolute Time'], row['Frame'], row['Slot'], row['UE_ID'], row['Layer'], row['Info'], row['Direction'], row['Message'], row['Extra Info'], i))
+                            temp_psu_logs = []
 
-            if len(self.campaign_iot_logs) > 0:
-                self.campaign_iot_logs.append(IotLogs(iot_logs=temp_psu_logs))
-            else:
-                self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
-        else: 
-            print("No matching files found.")
-            return -1
+                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                            if matching_files:
+                                df = pd.read_csv(matching_files[0])
+                                for i, row in df.iterrows():
+                                    temp_psu_logs.append(IotLog(1, row['TimeStamp'], row['Absolute Time'], row['Frame'], row['Slot'], row['UE_ID'], row['Layer'], row['Info'], row['Direction'], row['Message'], row['Extra Info'], i))
+
+                                if len(self.campaign_iot_logs) > 0:
+                                    self.campaign_iot_logs.append(IotLogs(iot_logs=temp_psu_logs))
+                                else:
+                                    self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
+                            else: 
+                                print("No matching files found for " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                                return -1
 
     def searchPrach(self):
         for campaign_iot_log in self.campaign_iot_logs:

@@ -41,11 +41,11 @@ class CampaignPsuLogs:
         
         return 1
     
-    def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
-        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul, n_antenna_dl):
-                for mcs_table in mcs_table:
-                    for mcs_index in mcs_index:
-                        for pmax in pmax:
+    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list):
+        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul_list, n_antenna_dl_list):
+                for mcs_table in mcs_table_list:
+                    for mcs_index in mcs_index_list:
+                        for pmax in pmax_list:
 
                             temp_psu_logs = []
 
@@ -57,8 +57,19 @@ class CampaignPsuLogs:
                                     self.campaign_psu_logs = [PsuLogs()]
 
                                 df = pd.read_csv(matching_files[0])
-                                for i, row in df.iterrows():
-                                    temp_psu_logs.append(PsuLog(1, row['Start Time'], row['Amperes'], row['Volts'], row['Origin']))
+
+                                start_time = df['Start Time']
+                                amperes = df['Amperes']
+                                volts = df['Volts']
+                                origin = df['Origin']
+
+                                start_time = start_time.to_numpy()
+                                amperes = amperes.to_numpy()
+                                volts = volts.to_numpy()
+                                origin = origin.to_numpy()
+
+                                for st, amp, volt, orig in zip(start_time, amperes, volts, origin):
+                                    temp_psu_logs.append(PsuLog(1, st, amp, volt, orig))
 
                                 self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
                             else: 
@@ -90,8 +101,9 @@ class PsuLogs:
         self.psu_logs.append(psu_log)
 
     def loadPsuData(self, psu_logs):
-        for psu_log in psu_logs:
-            self.addPsuLog(psu_log)
+        self.psu_logs = psu_logs
+        # for psu_log in psu_logs:
+        #     self.addPsuLog(psu_log)
 
         print("Psu Data loaded correctly")
         return 1
@@ -100,7 +112,7 @@ class PsuLogs:
         found = -1
         for i, psu_log in enumerate(self.psu_logs):
             # if psu_log.amperes > 0.3: #0.275:
-            if psu_log.volts > 1.5: #0.275:
+            if psu_log.volts > 0.9: #0.275:
                 self.psu_time_offset = psu_log.starttime
                 print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
                 found = 1

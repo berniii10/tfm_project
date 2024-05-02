@@ -34,18 +34,21 @@ def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
         campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
 
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
-        campaign_psu_logs.loadDataFromCsv(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
+        campaign_psu_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl)
     
+    time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # simplePlotTwoYValues(time, volts, amperes, "Time [s]", "Volts [V]", "Amperes [A]", "Voltage and Amperes registered")
+    simplePlot(time, volts, "Time [s]", "Voltage [V]")
+    simplePlot(time, amperes, "Time [s]", "Amperes [A]")
+
     if campaign_psu_logs.searchVoltageSpike() == -1:
         print("No voltage spike found")
         return -1
     
     campaign_psu_logs.calculateTimePsuAndPower()
     # campaign_psu_logs.findTwoMaxValues()
-
-    if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-            pickle.dump(campaign_psu_logs, file)
 
 def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_antenna_ul=None, n_antenna_dl=None):
     sweeps = None
@@ -57,7 +60,7 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
         campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
 
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
-        campaign_iot_logs.loadDataFromCsv(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
+        campaign_iot_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl)
 
     
     #if campaign_iot_logs.searchPrach() == -1: # Check if PRACH exists before processing the data.
@@ -87,10 +90,6 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     campaign_iot_logs.getMeanAndDeviationPusch()
     # campaign_iot_logs.getMeanAndDeviationPdsch()
 
-    if saveToPickle == True:
-        with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
-            pickle.dump(campaign_iot_logs, file)
-
     campaign_iot_logs.saveToCsv()
     campaign_iot_logs.printMcsAndPmax()
 
@@ -103,26 +102,35 @@ def myMain():
     
 
     if load_data_from == 'CSV':
-            pmax = [21, 20, 19]
-            mcs_table = ['qam64']
-            mcs_index = [12]
-            n_antenna_ul = [1]
-            n_antenna_dl = [1]
-            
-            if Psu == True:
-                psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
+        pmax = [1, 0, -1, -2, -3, -4, -5] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
+        mcs_table = ['qam64']
+        mcs_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        n_antenna_ul = [1]
+        n_antenna_dl = [1]
+        
+        if Psu == True:
+            if psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl) == -1:
+                return -1
 
-            if Iot ==  True:
-                iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl)
+        if Iot ==  True:
+            if iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl) == -1:
+                return -1
+
+        if saveToPickle == True:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'PsuLogs-' + 'pmax' + str(pmax[0]) + '_' + str(pmax[-1]) + "-" + "-".join(mcs_table) + str(mcs_index[0]) + '_' + str(mcs_index[-1]) + '-' + 'UL' + str(n_antenna_ul[0]) + 'DL' + str(n_antenna_dl[0]) + '.pkl'), 'wb') as file:
+                pickle.dump(campaign_psu_logs, file)
+                
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'IotLogs-' + 'pmax' + str(pmax[0]) + '_' + str(pmax[-1]) + "-" + "-".join(mcs_table) + str(mcs_index[0]) + '_' + str(mcs_index[-1]) + '-' + 'UL' + str(n_antenna_ul[0]) + 'DL' + str(n_antenna_dl[0]) + '.pkl'), 'wb') as file:
+                pickle.dump(campaign_iot_logs, file)
 
     elif load_data_from == 'Pickle':
         if Psu == True:
             with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
-                    campaign_psu_logs = pickle.load(file)
+                campaign_psu_logs = pickle.load(file)
 
         if Iot ==  True:
             with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
-                    campaign_iot_logs = pickle.load(file)
+                campaign_iot_logs = pickle.load(file)
 
     elif load_data_from == 'DB':
         myDb = DbConnection.connectToDb()
@@ -130,15 +138,14 @@ def myMain():
             psuPostProcessing(myDb=myDb)
 
         if Iot ==  True:
-            iotPostProcessing(myDb=myDb)         
+            iotPostProcessing(myDb=myDb)  
 
-    
-    time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    # simplePlotTwoYValues(time, volts, amperes, "Time [s]", "Volts [V]", "Amperes [A]", "Voltage and Amperes registered")
-    simplePlot(time, volts, "Time [s]", "Voltage [V]")
-    simplePlot(time, amperes, "Time [s]", "Amperes [A]")
+        if saveToPickle == True:
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+                campaign_iot_logs = pickle.dump(file)  
+
+            with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignPsuLogs' + str(campaign_id) + '.pkl'), 'rb') as file:
+                campaign_iot_logs = pickle.dump(file)       
 
     # psuRawPlot(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, x_lim_min=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.prach_time, x_lim_max=campaign_iot_logs.campaign_iot_logs[0].importantIndexes.registration_complete_time)
 
@@ -190,6 +197,8 @@ def myMain():
         median.append(campaign_iot_log.p_tx_median)
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
+
+    psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
 
     # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)

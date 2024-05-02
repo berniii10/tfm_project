@@ -102,24 +102,50 @@ class CampaignIotLogs:
         print("IoT Data loaded correctly")
         return 1
     
-    def loadDataFromCsv(self, pmax, mcs_table, mcs_index, n_antenna_ul, n_antenna_dl):
-        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul, n_antenna_dl):
-                for mcs_table in mcs_table:
-                    for mcs_index in mcs_index:
-                        for pmax in pmax:
+    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list):
+        for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul_list, n_antenna_dl_list):
+                for mcs_table in mcs_table_list:
+                    for mcs_index in mcs_index_list:
+                        for pmax in pmax_list:
 
                             temp_psu_logs = []
 
                             matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
                             if matching_files:
                                 df = pd.read_csv(matching_files[0])
-                                for i, row in df.iterrows():
-                                    temp_psu_logs.append(IotLog(1, row['TimeStamp'], row['Absolute Time'], row['Frame'], row['Slot'], row['UE_ID'], row['Layer'], row['Info'], row['Direction'], row['Message'], row['Extra Info'], i))
+
+                                timestamp = df['TimeStamp']
+                                abs_time = df['Absolute Time']
+                                frame = df['Frame']
+                                slot = df['Slot']
+                                ue_id = df['UE_ID']
+                                layer = df['Layer']
+                                info = df['Info']
+                                direction = df['Direction']
+                                message = df['Message']
+                                extra_info = df['Extra Info']
+
+                                timestamp = timestamp.to_numpy()
+                                abs_time = abs_time.to_numpy()
+                                frame = frame.to_numpy()
+                                slot = slot.to_numpy()
+                                ue_id = ue_id.to_numpy()
+                                layer = layer.to_numpy()
+                                info = info.to_numpy()
+                                direction = direction.to_numpy()
+                                message = message.to_numpy()
+                                extra_info = extra_info.to_numpy()
+
+                                for i, (tims, abstime, fr, sl, ue, lay, inf, drc, mssg, ei) in enumerate(zip(timestamp, abs_time, frame, slot, ue_id, layer, info, direction, message, extra_info)):
+                                    temp_psu_logs.append(IotLog(1, tims, abstime, fr, sl, ue, lay, inf, drc, mssg, ei, i))
 
                                 if len(self.campaign_iot_logs) > 0:
                                     self.campaign_iot_logs.append(IotLogs(iot_logs=temp_psu_logs))
                                 else:
                                     self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
+
+                                print("IoT Data loaded")
+                                
                             else: 
                                 print("No matching files found for " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
                                 return -1

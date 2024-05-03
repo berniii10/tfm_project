@@ -91,10 +91,10 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     campaign_iot_logs.getMeanAndDeviationPusch()
     # campaign_iot_logs.getMeanAndDeviationPdsch()
 
-    campaign_iot_logs.saveToCsv()
+    # campaign_iot_logs.saveToCsv()
     campaign_iot_logs.printMcsAndPmax()
 
-def myMain():
+def commonLoad():
     global Iot
     global Psu
     global campaign_iot_logs
@@ -103,9 +103,9 @@ def myMain():
     
 
     if load_data_from == 'CSV':
-        pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
+        pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
         mcs_table = ['qam64'] # qam64
-        mcs_index = [15] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+        mcs_index = [1] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
         n_antenna_ul = [1]
         n_antenna_dl = [1]
         
@@ -166,6 +166,23 @@ def myMain():
         with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
+def evaluatePmax():
+    global campaign_iot_logs
+    global campaign_psu_logs
+
+    p_max_mean = []
+    p_max = []
+
+    for campaign_iot_log in campaign_iot_logs.campaign_iot_logs:
+        p_max_mean.append(campaign_iot_log.p_tx_mean)
+        p_max.append(campaign_iot_log.p_max)
+
+    simplePlot(p_max, p_max_mean, "Power Transmission", "Power Consumption", "Power Consumption based on Power Transmission", scatter=1)
+
+def myMain():
+    global campaign_iot_logs
+    global campaign_psu_logs
+
     campaign_iot_logs.saveMeanAndDeviationToCsv(campaign_id)
     
     mean = []
@@ -205,12 +222,14 @@ def myMain():
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
-    # campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
+    campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
 
     return 1
 
 if __name__ == "__main__":
-    myMain()
+    commonLoad()
+    evaluatePmax()
+    # myMain()
     # firstSimpleModel()
     # evaluateBestModel()
     # minimizeDataSet()

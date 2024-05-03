@@ -123,8 +123,6 @@ def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines
     plt.legend()
 
     # Show the plot
-    plt.show()
-    plt.show(block=True)
     plt.get_current_fig_manager().window.state('zoomed')
     plt.show(block=True)
 

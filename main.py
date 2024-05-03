@@ -36,12 +36,12 @@ def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
         campaign_psu_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl)
     
-    time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
     # simplePlotTwoYValues(time, volts, amperes, "Time [s]", "Volts [V]", "Amperes [A]", "Voltage and Amperes registered")
-    simplePlot(time, volts, "Time [s]", "Voltage [V]")
-    simplePlot(time, amperes, "Time [s]", "Amperes [A]")
+    # simplePlot(time, volts, "Time [s]", "Voltage [V]")
+    # simplePlot(time, amperes, "Time [s]", "Amperes [A]")
 
     if campaign_psu_logs.searchVoltageSpike() == -1:
         print("No voltage spike found")
@@ -82,8 +82,9 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     # campaign_iot_logs.getAllNas()
     campaign_iot_logs.getRegistrationCompleteIndexTime()
 
-    campaign_iot_logs.getPuschTimes(lim=50)
-    campaign_iot_logs.getPdcchTimes(lim=50)
+    campaign_iot_logs.getPuschTimes(lim=30)
+    campaign_iot_logs.getPdcchTimes(lim=30)
+    campaign_iot_logs.getPucchTimes(lim=30)
 
     campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
     # campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
@@ -102,9 +103,9 @@ def myMain():
     
 
     if load_data_from == 'CSV':
-        pmax = [1, 0, -1, -2, -3, -4, -5] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
-        mcs_table = ['qam64']
-        mcs_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
+        mcs_table = ['qam64'] # qam64
+        mcs_index = [15] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
         n_antenna_ul = [1]
         n_antenna_dl = [1]
         
@@ -198,13 +199,13 @@ def myMain():
         mcs_indexes.append(campaign_iot_log.mcs_index)
         p_tx.append(campaign_iot_log.p_max)
 
-    psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+    psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
 
     # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
-    campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
+    # campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
 
     return 1
 

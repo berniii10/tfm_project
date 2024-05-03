@@ -15,7 +15,7 @@ class Direction(Enum):
 
 class Channel(Enum):
     PUSCH = "PUSCH"
-    PUCCH = "PDCCH"
+    PUCCH = "PUCCH"
     PRACH = "PRACH"
     PDSCH = "PDSCH"
     PDCCH = "PDCCH"

@@ -145,7 +145,7 @@ class CampaignIotLogs:
                                     self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
 
                                 print("IoT Data loaded")
-                                
+
                             else: 
                                 print("No matching files found for " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
                                 return -1
@@ -219,9 +219,9 @@ class CampaignIotLogs:
         for campaign_iot_log in self.campaign_iot_logs:
             return campaign_iot_log.getPdschTimes(lim)
 
-    def getPucchTimes(self):
+    def getPucchTimes(self, lim):
         for campaign_iot_log in self.campaign_iot_logs:
-            return campaign_iot_log.getPucchTimes()
+            campaign_iot_log.getPucchTimes(lim)
         
     def getPsuAssociatedWithResultTypeId(resulttypeid, campaign_psu_logs):
         for campaign_psu_log in campaign_psu_logs.campaign_psu_logs:
@@ -795,15 +795,13 @@ class IotLogs:
                     if self.timeIot[i] < lim:
                         self.importantIndexes.pdsch_times.append(self.timeIot[i])
 
-    def getPucchTimes(self):
-        aux = []
+    def getPucchTimes(self, lim):
         for i, (info, layer) in enumerate(zip(self.info, self.layer)):
             if Layer.PHY == layer:
                 if Channel.PUCCH.value in info:
                     #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                    if self.timeIot[i] > 0 and self.timeIot[i] < 10:
-                        aux.append(self.timeIot[i])
-        return aux
+                    if self.timeIot[i] < lim:
+                        self.importantIndexes.pucch_times.append(self.timeIot[i])
 
     def getPowerOfPhysicalTransmission(self, index, psu_times, psu_powers):
 
@@ -919,9 +917,10 @@ class ImportantIndexes():
         self.registration_complete_time = 0
 
         self.pusch_times = []
+        self.pucch_times = []
         self.pdcch_times = []
         self.pdsch_times = []
 
     def getAllTimesList(self):
-        return [[self.prach_time], [self.registration_complete_time], self.pusch_times, self.pdcch_times]
+        return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], self.pdcch_times, self.pdsch_times, self.pucch_times]
         

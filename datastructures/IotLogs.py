@@ -321,7 +321,7 @@ class IotLogs:
         self.bw = 0
         self.freq_band = 0
 
-        self.powers = []
+        self.powers_pusch = []
         self.p_tx_mean = 0
         self.p_tx_min = 0
         self.p_tx_max = 0
@@ -493,7 +493,8 @@ class IotLogs:
                         min_index = np.min(indices)
                         indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[min_index]
                     else:
-                        return -1
+                        indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[-1]
+                        # return -1
                     
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
@@ -535,6 +536,7 @@ class IotLogs:
         nonPhyIndex = 0
 
         while phyIndex < len(self.phy_time_in_secs_and_indexes_list) and nonPhyIndex < len(self.non_phy_indexes):
+            # if nonPhyIndex >= len(self.non_phy_time_stamps_secs): next
             if (self.phy_time_in_secs_and_indexes_list[phyIndex][0] == self.non_phy_time_stamps_secs[nonPhyIndex][0] and self.direction[self.non_phy_time_stamps_secs[nonPhyIndex][1]] == Direction.UL) or self.phy_time_in_secs_and_indexes_list[phyIndex][0] < self.non_phy_time_stamps_secs[nonPhyIndex][0]:
                 
                 resulttypeid.append(self.resulttypeid[self.phy_time_in_secs_and_indexes_list[phyIndex][1]])
@@ -628,6 +630,15 @@ class IotLogs:
         self.extrainfo = extrainfo
         self.index = index
         self.timeIot = timeIot
+        
+        self.phy_indexes.clear()
+        self.phy_sib_indexes.clear()
+        self.phy_nonsib_indexes.clear()
+        self.non_phy_indexes.clear()
+
+        self.phy_time_in_secs_and_indexes_list.clear()
+        self.non_phy_time_stamps_secs.clear()
+
         print("Data Cleaned")
         
     def getPMax(self):
@@ -772,7 +783,7 @@ class IotLogs:
                 writer.writerow(row)
 
     def getPuschTimes(self, lim):
-        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+        for i, (info, layer) in enumerate(zip(self.info[self.importantIndexes.registration_complete_index:], self.layer[self.importantIndexes.registration_complete_index:]), start=self.importantIndexes.registration_complete_index):
             if Layer.PHY == layer:
                 if Channel.PUSCH.value in info:
                     #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
@@ -830,7 +841,7 @@ class IotLogs:
                     power = self.getPowerOfPhysicalTransmission(i, psu_times, psu_powers)
                     if power == -1 and i > self.importantIndexes.registration_complete_index + 2:
                         break
-                    self.powers.append(power)
+                    self.powers_pusch.append(power)
     
     def getAllPdschPowers(self, psu_logs):
         psu_times = np.array([psu_log.time_psu for psu_log in psu_logs.psu_logs])
@@ -847,12 +858,12 @@ class IotLogs:
 
     def getMeanAndDeviationPusch(self):
 
-        self.p_tx_mean = np.mean(self.powers)
-        self.p_tx_min = min(self.powers)
-        self.p_tx_max = max(self.powers)
-        self.p_tx_standard_deviation = np.std(self.powers)
-        self.p_tx_median = np.median(self.powers)
-        self.p_tx_confidence_interval = stats.norm.interval(0.95, loc=self.p_tx_mean, scale=stats.sem(self.powers))
+        self.p_tx_mean = np.mean(self.powers_pusch)
+        self.p_tx_min = min(self.powers_pusch)
+        self.p_tx_max = max(self.powers_pusch)
+        self.p_tx_standard_deviation = np.std(self.powers_pusch)
+        self.p_tx_median = np.median(self.powers_pusch)
+        self.p_tx_confidence_interval = stats.norm.interval(0.95, loc=self.p_tx_mean, scale=stats.sem(self.powers_pusch))
 
         print("Mean and Deviation Calculated")
     
@@ -871,10 +882,11 @@ class IotLogs:
         with open(os.path.join('DeepLearning','tx', 'data' + '.csv'), 'a', newline='') as file:
             writer = csv.writer(file)
             
-            for power in self.powers:
+            for power in self.powers_pusch:
                 writer.writerows([
                     [self.p_max, mcs_table_conversion[f'{self.mcs_table}_{self.mcs_index}'], self.mimo, power,]
                 ])
+        print("Written in Data file")
 
     def saveDataForTrainingPdsch(self):
         with open(os.path.join('DeepLearning','rx', 'data' + '.csv'), 'a', newline='') as file:

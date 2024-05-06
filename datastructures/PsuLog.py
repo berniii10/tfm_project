@@ -43,42 +43,42 @@ class CampaignPsuLogs:
     
     def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list):
         for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul_list, n_antenna_dl_list):
-                for mcs_table in mcs_table_list:
-                    for mcs_index in mcs_index_list:
-                        for pmax in pmax_list:
+            for mcs_table in mcs_table_list:
+                for mcs_index in mcs_index_list:
+                    for pmax in pmax_list:
 
-                            temp_psu_logs = []
+                        temp_psu_logs = []
 
-                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
-                            if matching_files:
-                                if len(self.campaign_psu_logs) > 0:
-                                    self.campaign_psu_logs.append(PsuLogs())
-                                else:
-                                    self.campaign_psu_logs = [PsuLogs()]
+                        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                        if matching_files:
+                            if len(self.campaign_psu_logs) > 0:
+                                self.campaign_psu_logs.append(PsuLogs())
+                            else:
+                                self.campaign_psu_logs = [PsuLogs()]
 
-                                df = pd.read_csv(matching_files[0])
+                            df = pd.read_csv(matching_files[0])
 
-                                start_time = df['Start Time']
-                                amperes = df['Amperes']
-                                volts = df['Volts']
-                                origin = df['Origin']
+                            start_time = df['Start Time']
+                            amperes = df['Amperes']
+                            volts = df['Volts']
+                            origin = df['Origin']
 
-                                start_time = start_time.to_numpy()
-                                amperes = amperes.to_numpy()
-                                volts = volts.to_numpy()
-                                origin = origin.to_numpy()
+                            start_time = start_time.to_numpy()
+                            amperes = amperes.to_numpy()
+                            volts = volts.to_numpy()
+                            origin = origin.to_numpy()
 
-                                for st, amp, volt, orig in zip(start_time, amperes, volts, origin):
-                                    temp_psu_logs.append(PsuLog(1, st, amp, volt, orig))
+                            for st, amp, volt, orig in zip(start_time, amperes, volts, origin):
+                                temp_psu_logs.append(PsuLog(1, st, amp, volt, orig))
 
-                                self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
-                            else: 
-                                print("No matching files found for: " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
-                                return -1
+                            self.campaign_psu_logs[len(self.campaign_psu_logs)-1].loadPsuData(temp_psu_logs)
+                        else: 
+                            print("No matching files found for: " + os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                            return -1
 
 
     def searchVoltageSpike(self):
-        for campaign_psu_log in self.campaign_psu_logs:
+        for i, campaign_psu_log in enumerate(self.campaign_psu_logs):
             if campaign_psu_log.searchVoltageSpike() == -1:
                 return -1
 
@@ -96,6 +96,7 @@ class PsuLogs:
         self.psu_time_offset = 0
         self.voltage = 5
         self.psu_logs = []
+        self.trigger = 1.2
 
     def addPsuLog(self, psu_log):
         self.psu_logs.append(psu_log)
@@ -110,13 +111,16 @@ class PsuLogs:
 
     def searchVoltageSpike(self):
         found = -1
-        for i, psu_log in enumerate(self.psu_logs):
-            # if psu_log.amperes > 0.3: #0.275:
-            if psu_log.volts > 0.9: #0.275:
-                self.psu_time_offset = psu_log.starttime
-                print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
-                found = 1
-                break
+        while self.trigger > 0.5:
+            for i, psu_log in enumerate(self.psu_logs):
+                # if psu_log.amperes > 0.3: #0.275:
+                if psu_log.volts > self.trigger: #0.275:
+                    self.psu_time_offset = psu_log.starttime
+                    print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
+                    found = 1
+                    return found
+                
+            self.trigger = self.trigger - 0.1
             
         return found
 

@@ -7,7 +7,7 @@ def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=
     
     if scatter == None:
         plt.figure(figsize=(15, 10))
-        plt.plot(x_values, y_values, label='Power Samples', zorder=2)
+        plt.plot(x_values, y_values, marker='x', label='Power Samples', zorder=2)
     else:
         plt.figure(figsize=(15, 10))
         plt.scatter(x_values, y_values, label='Power Samples', s=40, marker='x', zorder=2)

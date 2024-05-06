@@ -1,5 +1,5 @@
 #Import modules
-import os, sys
+import os, sys, time
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -65,6 +65,13 @@ class FnnMode():
 
         return score
     
+    def testTimePrediction(self, sample):
+        start_time = time.time()
+        prediction = self.model.predict(sample)
+        end_time = time.time()
+        print(f"Prediction time: {end_time - start_time} seconds")
+        return (end_time - start_time), prediction
+    
 def getInfoFromData(data, train_data, train_label, test_data, test_label):
     # Basic inspection of the DataFrame
     print(data.head())  # Display the first few rows
@@ -98,7 +105,6 @@ def getInfoFromData(data, train_data, train_label, test_data, test_label):
     print(train_data.isnull().sum())
     print("Missing values in testing data:")
     print(test_data.isnull().sum())
-
     
 def getDataNormalizeAndSplit(cut_data_set=None, display_info=None):
     test_size=0.3
@@ -110,8 +116,6 @@ def getDataNormalizeAndSplit(cut_data_set=None, display_info=None):
 
     if cut_data_set != None:
         data = data.sample(frac=cut_data_set).reset_index(drop=True)
-        if cut_data_set <= 0.1:
-            test_size = 0.1
 
     # Step 2: Split the data into training and testing sets and shuffle it
     train_data, test_data = train_test_split(data, test_size=test_size, random_state=42, shuffle=True)
@@ -155,8 +159,8 @@ def getDataNormalizeAndSplit(cut_data_set=None, display_info=None):
 def firstSimpleModel():
     x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
 
-    model = FnnMode(input_shape=3, num_layers=6, neurons_per_layer=[512, 256, 128, 64, 16, 1], activation_function='relu')
-    model.trainModel(x_train, y_train, batch_size=256, epochs=5)
+    model = FnnMode(input_shape=3, num_layers=3, neurons_per_layer=[512, 256, 32], activation_function='relu')
+    model.trainModel(x_train, y_train, batch_size=512, epochs=5)
     trn_loss, trn_mae = model.getLossAndAccuracy()
     print(f"Training loss: {trn_loss}")
     print(f"Training MAE: {trn_mae}")
@@ -164,7 +168,6 @@ def firstSimpleModel():
     model.plotLossAndAccuracy(trn_loss=trn_loss, trn_acc=trn_mae)
 
     model.evaluateModel(x_test, y_test)
-
 
 def evaluateBestModel():
     # Define the sweep parameters
@@ -218,7 +221,7 @@ def minimizeDataSet():
     num_layers = 3
     neurons_per_layer = [512, 256, 32]
     test_mae = sys.float_info.min
-    cut_data_set = 0.1
+    cut_data_set = 1
 
     while test_mae < 0.1:
         x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(cut_data_set=cut_data_set)
@@ -228,9 +231,34 @@ def minimizeDataSet():
         score = model.evaluateModel(x_test, y_test)
         print(f"For {cut_data_set*100}% of the dataset, the Loss achieved is: {score[0]} and the MAE: {score[1]}")
 
-        cut_data_set = cut_data_set-0.1
+        if cut_data_set <= 0.1:
+            cut_data_set = cut_data_set-0.05
+        else:
+            cut_data_set = cut_data_set-0.1
 
+def testSpeedPerformance():
+    num_layers = 3
+    neurons_per_layer = [512, 256, 32]
+    n_tests = 1000
+    time_mean = []
+    t = 0
 
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
+
+    model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+    model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+    # score = model.evaluateModel(x_test, y_test)
+    sample = x_test.iloc[[0]]
+
+    while n_tests > 0:
+        
+        sample = x_test.iloc[[n_tests]]
+        t, prediction = model.testTimePrediction(sample=sample)
+        time_mean.append(t)
+
+        n_tests -= 1
+
+    print(f"Average time to perform a prediction: {sum(time_mean)/len(time_mean)} seconds")
 
 """
 For the caller of the function:

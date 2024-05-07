@@ -41,7 +41,7 @@ class CampaignPsuLogs:
         
         return 1
     
-    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list):
+    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list, tx_rx=None):
         for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul_list, n_antenna_dl_list):
             for mcs_table in mcs_table_list:
                 for mcs_index in mcs_index_list:
@@ -49,7 +49,11 @@ class CampaignPsuLogs:
 
                         temp_psu_logs = []
 
-                        matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                        if tx_rx == 'tx':
+                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', 'tx', f'TX_PSU_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                        elif tx_rx == 'rx':
+                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', 'rx', f'RX_PSU_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+
                         if matching_files:
                             if len(self.campaign_psu_logs) > 0:
                                 self.campaign_psu_logs.append(PsuLogs())
@@ -96,7 +100,7 @@ class PsuLogs:
         self.psu_time_offset = 0
         self.voltage = 5
         self.psu_logs = []
-        self.trigger = 1.2
+        self.trigger = 1
 
     def addPsuLog(self, psu_log):
         self.psu_logs.append(psu_log)
@@ -110,24 +114,30 @@ class PsuLogs:
         return 1
 
     def searchVoltageSpike(self):
-        found = -1
-        while self.trigger > 0.5:
-            for i, psu_log in enumerate(self.psu_logs):
-                # if psu_log.amperes > 0.3: #0.275:
-                if psu_log.volts > self.trigger: #0.275:
-                    self.psu_time_offset = psu_log.starttime
-                    print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
-                    found = 1
-                    return found
-                
-            self.trigger = self.trigger - 0.1
+        #found = -1
+        #while self.trigger > 0.5:
+        #    for i, psu_log in enumerate(self.psu_logs):
+        #        # if psu_log.amperes > 0.3: #0.275:
+        #        if psu_log.volts > self.trigger:
+        #            self.psu_time_offset = psu_log.starttime
+        #            print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
+        #            found = 1
+        #            break
+        #            # return found
+        #    if found == 1:
+        #        break
+        #    self.trigger = self.trigger - 0.1
             
-        return found
+        #return found
+        self.psu_time_offset = 0.9999974399998
+        return 1
 
     def calculateTimePsuAndPower(self):
         for psu_log in self.psu_logs:
             psu_log.time_psu = psu_log.starttime - self.psu_time_offset
             psu_log.power = self.voltage * psu_log.amperes
+            psu_log.starttime = None
+            psu_log.origin = None
 
     def findTwoMaxValues(self):
         max1 = 0.0

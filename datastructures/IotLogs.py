@@ -102,15 +102,19 @@ class CampaignIotLogs:
         print("IoT Data loaded correctly")
         return 1
     
-    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list):
+    def loadDataFromCsv(self, pmax_list, mcs_table_list, mcs_index_list, n_antenna_ul_list, n_antenna_dl_list, tx_rx=None):
         for n_antenna_ul, n_antenna_dl in zip(n_antenna_ul_list, n_antenna_dl_list):
                 for mcs_table in mcs_table_list:
                     for mcs_index in mcs_index_list:
                         for pmax in pmax_list:
 
                             temp_psu_logs = []
+                            
+                            if tx_rx == 'tx':
+                                matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', 'tx', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
+                            elif tx_rx == 'rx':
+                                matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', 'rx', f'RX_IoT_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
 
-                            matching_files = glob.glob(os.path.join('datastructures','files', 'CampaignOutput', f'TX_IoT_pmax{pmax}_MCS{mcs_table}-{mcs_index}_UL{n_antenna_ul}_DL{n_antenna_dl}*' + '.csv'))
                             if matching_files:
                                 df = pd.read_csv(matching_files[0])
 
@@ -144,6 +148,13 @@ class CampaignIotLogs:
                                 else:
                                     self.campaign_iot_logs = [IotLogs(iot_logs=temp_psu_logs)]
 
+                                if tx_rx == 'tx':
+                                    self.campaign_iot_logs[-1].mimo = n_antenna_ul
+                                elif tx_rx == 'rx':
+                                    self.campaign_iot_logs[-1].mimo = n_antenna_dl
+
+                                self.campaign_iot_logs[-1].mcs_index = mcs_index
+                                self.campaign_iot_logs[-1].mcs_table = mcs_table
                                 print("IoT Data loaded")
 
                             else: 
@@ -379,6 +390,8 @@ class IotLogs:
 
         for iot_log in iot_logs:
             self.addIotLog(iot_log)
+
+        self.iot_logs.clear()
         
         if len(self.phy_indexes) == 0:
             print("No PHY log entries found in the Iot log")
@@ -465,7 +478,8 @@ class IotLogs:
                     max_index = np.max(indices)
                     indexOfPhyLayerEquivalentLogEntry = phy_nonsib_indexes_tmp[max_index]
                 else:
-                    return -1
+                    indexOfPhyLayerEquivalentLogEntry = phy_sib_indexes_tmp[-1]
+                    # return -1
                                    
                 if (indexOfPhyLayerEquivalentLogEntry == -1):
 
@@ -799,7 +813,7 @@ class IotLogs:
                         self.importantIndexes.pdcch_times.append(self.timeIot[i])
 
     def getPdschTimes(self, lim):
-        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+        for i, (info, layer) in enumerate(zip(self.info[self.importantIndexes.registration_complete_index:], self.layer[self.importantIndexes.registration_complete_index:]), start=self.importantIndexes.registration_complete_index):
             if Layer.PHY == layer:
                 if Channel.PDSCH.value in info:
                     #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
@@ -898,6 +912,7 @@ class IotLogs:
                     self.mimo,
                     power,
                 ])
+        print("Written in Data file")
 
 class IotLog:
     def __init__(self, resulttypeid, timestamp, absolutetime, frame, slot, ue_id, layer, info, direction, message, extrainfo, index, timeIot=None):

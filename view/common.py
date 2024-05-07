@@ -22,16 +22,16 @@ def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=
     plt.ylabel(y_label, fontsize=16)
     plt.title(plot_title, fontsize=20)
 
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
+    # plt.grid(True, zorder=1)
+    plt.grid(True, linestyle='-', linewidth=0.5, color='gray', alpha=0.5, which='both')
 
-    plt.grid(True, zorder=1)
+    plt.xticks(x_values, fontsize=16)
+    plt.yticks(fontsize=16)
 
     # Add a legend
     plt.legend()
 
     # Show the plot
-    plt.show()
     plt.show(block=True)
 
 def psuRawPlot(psu_logs, y_min=None, y_max=None, x_lim_min=None, x_lim_max=None, title=None):
@@ -52,17 +52,19 @@ def psuRawPlot(psu_logs, y_min=None, y_max=None, x_lim_min=None, x_lim_max=None,
     else:
         simplePlot(time, power, "Time [s]", "Power [W]", title, x_lim_min, x_lim_max)
 
-def simplePlotTwoYValues(x_values, y_values1, y_values2, x_label, y_label1, y_label2, plot_title):
+def simplePlotTwoYValues(x_values, y_values1, y_values2, x_axis_label, y_axis_label, y_label1, y_label2, plot_title):
     # Create a line plot
     # plt.scatter(x_values, y_values, label='Power Samples', s=0.5, zorder=2)
     plt.plot(x_values, y_values2, label=y_label2, color='red', zorder=2)
     plt.plot(x_values, y_values1, label=y_label1, color='blue', zorder=2)
 
     # Add labels and title
-    plt.xlabel(x_label)
-    plt.ylabel(f'{y_label1}\n{y_label2}')
+    plt.xlabel(x_axis_label)
+    plt.ylabel(y_axis_label)
     plt.title(plot_title)
     plt.grid(True, zorder=1)
+
+    plt.xticks(x_values, fontsize=16)
 
     # Add a legend
     plt.legend()
@@ -106,8 +108,8 @@ def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines
             plt.plot([], [], color=colors[i], label=colors_legend[i])
             for line in lines:
                 if line < y_max:
-                    plt.axvline(x=line, color=colors[i], linestyle='--', linewidth=1)  # Red dashed line at x_lim_min
-                    # # plt.axvline(x=line+0.00049, color=colors[i], linewidth=0.5)  # Red dashed line at x_lim_min
+                    # plt.axvline(x=line, color=colors[i], linestyle='--', linewidth=1)  # Red dashed line at x_lim_min
+                    # plt.axvline(x=line+0.00049, color=colors[i], linewidth=0.5)  # Red dashed line at x_lim_min
                     
                     rect = patches.Rectangle((line, 0), 0.0005, max(y_values), linewidth=0.5, edgecolor=colors[i], facecolor=colors[i], alpha=0.3)
                     # Add the rectangle patch to the plot

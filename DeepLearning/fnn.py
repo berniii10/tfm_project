@@ -198,7 +198,7 @@ def evaluateBestModel():
         trn_loss, trn_mae = model.getLossAndAccuracy()
         
         # Plot loss
-        label = f'Model {i+1}: {len(neurons_per_layer_list)} layers, {neurons_per_layer} neurons/layer'
+        label = f'Model {i+1}: {len(neurons_per_layer)} layers, {neurons_per_layer} neurons/layer'
         plt.plot(np.arange(model.epochs) + 1, trn_loss, label=label)
 
         # Plot MAE

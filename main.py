@@ -25,7 +25,7 @@ load_data_from = 'CSV'  # Possible sources: CSV, Pickle, DB
 saveToPickle = False
 
 
-def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_antenna_ul=None, n_antenna_dl=None):
+def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_antenna_ul=None, n_antenna_dl=None, tx_rx=None):
     sweeps = None
     global Psu
     global campaign_psu_logs
@@ -35,11 +35,12 @@ def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
         campaign_psu_logs.loadData(psu_rows, sweeps=sweeps)
 
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
-        campaign_psu_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl)
+        if campaign_psu_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl, tx_rx=tx_rx) == -1:
+            return -1
     
-    time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
-    volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # time = [psu_log.origin for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # amperes = [psu_log.amperes for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
+    # volts = [psu_log.volts for psu_log in campaign_psu_logs.campaign_psu_logs[0].psu_logs]
     # simplePlotTwoYValues(time, volts, amperes, "Time [s]", "Volts [V]", "Amperes [A]", "Voltage and Amperes registered")
     # simplePlot(time, volts, "Time [s]", "Voltage [V]")
     # simplePlot(time, amperes, "Time [s]", "Amperes [A]")
@@ -51,7 +52,7 @@ def psuPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
     campaign_psu_logs.calculateTimePsuAndPower()
     # campaign_psu_logs.findTwoMaxValues()
 
-def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_antenna_ul=None, n_antenna_dl=None):
+def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_antenna_ul=None, n_antenna_dl=None, tx_rx=None):
     sweeps = None
     global Iot
     global campaign_iot_logs
@@ -61,11 +62,8 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
         campaign_iot_logs.loadIotData(iot_rows, sweeps=sweeps)
 
     elif pmax != None and mcs_table != None and mcs_index != None and n_antenna_ul != None and n_antenna_dl != None:
-        campaign_iot_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl)
-
-    
-    #if campaign_iot_logs.searchPrach() == -1: # Check if PRACH exists before processing the data.
-    #    return -1
+        if campaign_iot_logs.loadDataFromCsv(pmax_list=pmax, mcs_table_list=mcs_table, mcs_index_list=mcs_index, n_antenna_ul_list=n_antenna_ul, n_antenna_dl_list=n_antenna_dl, tx_rx=tx_rx) == -1:
+            return -1
 
     campaign_iot_logs.sortPhyLogEntries()
     campaign_iot_logs.sortNonPhyLogEntries()
@@ -77,45 +75,44 @@ def iotPostProcessing(myDb=None, pmax=None, mcs_table=None, mcs_index=None, n_an
 
     # campaign_iot_logs.findHighestFrameAndSlot()
     campaign_iot_logs.getPMax()
-    campaign_iot_logs.getMcs()
-    campaign_iot_logs.getMimo()
+    # campaign_iot_logs.getMcs()
+    # campaign_iot_logs.getMimo()
     campaign_iot_logs.getFrequencyBand()
     # campaign_iot_logs.getAllNas()
     campaign_iot_logs.getRegistrationCompleteIndexTime()
 
     campaign_iot_logs.getPuschTimes(lim=30)
     campaign_iot_logs.getPdcchTimes(lim=30)
-    # campaign_iot_logs.getPucchTimes(lim=30)
+    campaign_iot_logs.getPucchTimes(lim=30)
+    campaign_iot_logs.getPdschTimes(lim=30)
 
     campaign_iot_logs.getAllPuschPowers(campaign_psu_logs)
-    # campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
+    campaign_iot_logs.getAllPdschPowers(campaign_psu_logs)
     campaign_iot_logs.getMeanAndDeviationPusch()
-    # campaign_iot_logs.getMeanAndDeviationPdsch()
+    campaign_iot_logs.getMeanAndDeviationPdsch()
 
-    # campaign_iot_logs.saveToCsv()
     campaign_iot_logs.printMcsAndPmax()
 
-def commonLoad():
+def commonLoad(tx_rx):
     global Iot
     global Psu
     global campaign_iot_logs
     global campaign_psu_logs
-    global load_data_from5
     
 
     if load_data_from == 'CSV':
         pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
-        mcs_table = ['qam64'] # qam64
-        mcs_index = [0] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+        mcs_table = ['qam256'] # qam64
+        mcs_index = [6, 7, 8, 9, 10] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
         n_antenna_ul = [2]
-        n_antenna_dl = [2]
+        n_antenna_dl = [1]
         
         if Psu == True:
-            if psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl) == -1:
+            if psuPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl, tx_rx=tx_rx) == -1:
                 return -1
 
         if Iot ==  True:
-            if iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl) == -1:
+            if iotPostProcessing(pmax=pmax, mcs_table=mcs_table, mcs_index=mcs_index, n_antenna_ul=n_antenna_ul, n_antenna_dl=n_antenna_dl, tx_rx=tx_rx) == -1:
                 return -1
 
         if saveToPickle == True:
@@ -160,42 +157,63 @@ def commonLoad():
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
-    
-    # getPsuAssociatedWithResultTypeId(1365)
 
     if saveToPickle == True:
         with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
-def evaluatePmax():
-    global campaign_iot_logs
-    global campaign_psu_logs
+def evaluatePmax(mcs=None):
+    
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
 
-    p_max_mean = []
-    p_max = []
+    # Specify the desired 'MCS' and 'MIMO' values
+    if mcs == None:
+        mcs_value = 10
+    else:
+        mcs_value = mcs
+    mimo_value = 2
 
-    for campaign_iot_log in campaign_iot_logs.campaign_iot_logs:
-        p_max_mean.append(campaign_iot_log.p_tx_mean)
-        p_max.append(campaign_iot_log.p_max)
+    # Filter the DataFrame based on the specified 'MCS' and 'MIMO' values
+    filtered_df = df[(df['mcs'] == mcs_value) & (df['mimo'] == mimo_value)]
 
-    simplePlot(p_max, p_max_mean, "Power Transmission", "Power Consumption", "Power Consumption based on Power Transmission")
+    # Group by 'pmax' and calculate the average label for each group
+    average_labels = filtered_df.groupby('pmax')['label'].mean()
 
-def createHeatMap():
-    global campaign_iot_logs
-    global campaign_psu_logs
+    mimo_value = 1
+    # Filter the DataFrame based on the specified 'MCS' and 'MIMO' values
+    filtered_df2 = df[(df['mcs'] == mcs_value) & (df['mimo'] == mimo_value)]
 
-    data = [[]]
-    for campaign_iot_log in campaign_iot_logs.campaign_iot_logs:
-        print(f"Pmax: {campaign_iot_log.p_max}, MCS Table: {campaign_iot_log.mcs_table}, MCS Index: {campaign_iot_log.mcs_index}, MIMO: {campaign_iot_log.mimo}, Mean Transmission Power{campaign_iot_log.p_tx_mean}")
+    # Group by 'pmax' and calculate the average label for each group
+    average_labels2 = filtered_df2.groupby('pmax')['label'].mean()
 
-    # Create a heatmap using imshow
-    plt.imshow(data, cmap='hot', interpolation='nearest')
+    p_max = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5]
 
-    # Add a colorbar to the heatmap
-    plt.colorbar()
+    simplePlot(p_max[::-1], average_labels, "Power Transmission [dBm]", "Power Consumption [W]", "Power Consumption based on Power Transmission for MIMO 2x2", scatter=1)
+    simplePlotTwoYValues(p_max[::-1], average_labels, average_labels2, 'Transmission Power [dBm]', "Power Consumption [W]", 'MIMO 2x2', 'SISO', 'Power consumption based on Transmission Power for SISO and MIMO 2x2')
+    simplePlot(p_max[::-1], average_labels2, "Power Transmission [dBm]", "Power Consumption [W]", "Power Consumption based on Power Transmission for SISO", scatter=1)
 
-    # Display the heatmap
-    plt.show()
+def evaluateMcs():
+        # Read the CSV file into a DataFrame
+    df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
+
+    # Specify the desired 'MCS' and 'MIMO' values
+    mimo_value = 1
+    pmax = 21
+
+    mcs_index1 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    mcs_index2 = [29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+
+    # Filter the DataFrame based on the specified 'MCS' and 'MIMO' values
+    filtered_mcs64 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index1))]
+    filtered_mcs256 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index2))]
+
+    # Group by 'pmax' and calculate the average label for each group
+    average_labels_filtered_mcs64 = filtered_mcs64.groupby('mcs')['label'].mean()
+    average_labels_filtered_mcs256 = filtered_mcs256.groupby('mcs')['label'].mean()
+
+    simplePlot(mcs_index1, average_labels_filtered_mcs64, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index for table 64QAM", scatter=1)
+    simplePlot(mcs_index1[:10], average_labels_filtered_mcs256, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index for table 256QAM", scatter=1)
 
 def myMain(tx_rx):
     global campaign_iot_logs
@@ -209,22 +227,28 @@ def myMain(tx_rx):
     median = []
     mcs_indexes = []
     p_tx = []
-    with open("outputData.txt", "a") as file:
+
+    file = ''
+
+    if tx_rx == 'tx':
+        file = 'outputTx.txt'
+    elif tx_rx == 'rx':
+        file = 'outputRx.txt'
+    
+    with open(file, "a") as file:
         for campaign_psu_log, campaign_iot_log in zip(campaign_psu_logs.campaign_psu_logs, campaign_iot_logs.campaign_iot_logs):
-            all_times = campaign_iot_log.importantIndexes.getAllTimesList()
-            #all_times.append(campaign_iot_log.getPdschTimes())
-            #all_times.append(campaign_iot_log.getPucchTimes())
 
-            print(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
-                f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
-                f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median:.3f} [W]\n"
-                f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min:.3f} [W]\n"
-                f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max:.3f} [W]\n"
-                f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation:.3f} or {campaign_iot_log.p_tx_standard_deviation*100/campaign_iot_log.p_tx_mean:.3f}%\n"
-                f"- Confidence Interval Low {campaign_iot_log.p_tx_confidence_interval[0]:.3f}\n"
-                f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
-                "--------------------------------------------------------------------")
+            #print(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
+            #    f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
+            #    f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median:.3f} [W]\n"
+            #    f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min:.3f} [W]\n"
+            #    f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max:.3f} [W]\n"
+            #    f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation:.3f} or {campaign_iot_log.p_tx_standard_deviation*100/campaign_iot_log.p_tx_mean:.3f}%\n"
+            #    f"- Confidence Interval Low {campaign_iot_log.p_tx_confidence_interval[0]:.3f}\n"
+            #    f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
+            #    "--------------------------------------------------------------------")
 
+            print(rf"\textbf{campaign_iot_log.p_max}  & {campaign_iot_log.p_tx_mean:.3f}  & {campaign_iot_log.p_tx_median:.3f}  & {campaign_iot_log.p_tx_standard_deviation:.3f}  & {campaign_iot_log.p_tx_confidence_interval[0]:.3f}  & {campaign_iot_log.p_tx_confidence_interval[1]:.3f} \\ \hline")
             
             #file.write(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
             #f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
@@ -236,8 +260,10 @@ def myMain(tx_rx):
             #f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
             #"--------------------------------------------------------------------")
 
+            all_times = campaign_iot_log.importantIndexes.getAllTimesList()
             # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
             # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times)
+
             mean.append(campaign_iot_log.p_tx_mean)
             lower_ci.append(campaign_iot_log.p_tx_confidence_interval[0])
             upper_ci.append(campaign_iot_log.p_tx_confidence_interval[1])
@@ -245,98 +271,36 @@ def myMain(tx_rx):
             mcs_indexes.append(campaign_iot_log.mcs_index)
             p_tx.append(campaign_iot_log.p_max)
 
-            psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
-
-        psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+            # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+        
+        all_times = campaign_iot_logs.campaign_iot_logs[0].importantIndexes.getAllTimesList()
+        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
 
     # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     if tx_rx == 'tx':
+        campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
         pass
-        # campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
     elif tx_rx == 'rx':
+        campaign_iot_logs.saveDataToCsvForDeepLearningModelPdsch()
         pass
 
     return 1
 
-def checkFiles():
-        
-    # Specify the directory path
-    directory_path = os.path.join('datastructures','files', 'CampaignOutput')
-    # Define the ranges for N, X, Y, and p
-    N_values = list(range(21, -6, -1))
-    X_values = ['qam64', 'qam256']
-    Y_values = {'qam64': list(range(18)), 'qam256': list(range(11))}
-    p_values = [1, 2]
-
-    # Generate all possible combinations
-    all_combinations = list(itertools.product(N_values, X_values, p_values))
-    all_combinations = [(N, X, Y) for N, X, p in all_combinations for Y in Y_values[X]]
-
-
-    # Get a list of all files in the directory
-    existing_files = os.listdir(directory_path)
-
-    # Create a list to store missing combinations
-    missing_combinations = []
-
-    # Check for missing combinations
-    for combination in all_combinations:
-        filename = f"*pmax{combination[0]}_MCS{combination[1]}-{combination[2]}_UL{combination[2]}_DL{combination[2]}*"
-        if not any(filename in file for file in existing_files):
-            missing_combinations.append(combination)
-
-    # Print or save the missing combinations
-    with open("missing_combinations.txt", "w") as file:
-        for combination in missing_combinations:
-            file.write(f"{combination}\n")
-
-def checkMissingCombiantions():
-    # Define the ranges for each column
-    pmax_range = range(-5, 22)  # Exclude 22
-    mimo_range = range(1, 3)    # Exclude 3
-    mcs_range = list(range(0, 18)) + list(range(29, 40))  # Exclude 18 and 40
-
-    # Generate all possible combinations within the specified ranges
-    all_combinations = list(itertools.product(pmax_range, mimo_range, mcs_range))
-
-    # Read the CSV file
-    df = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
-
-    # Extract unique combinations from the dataframe
-    unique_combinations = set(zip(df['pmax'], df['mimo'], df['mcs']))
-
-    # Find the missing combinations
-    missing_combinations = [comb for comb in all_combinations if comb not in unique_combinations]
-
-    # Print or save the missing combinations
-    with open("missing_combinations.txt", "w") as file:
-        for combination in missing_combinations:
-            file.write(f"{combination}\n")
-
 if __name__ == "__main__":
     tx_rx = 'tx'
 
-    with open("outputData.txt", "a") as file:
-        # Read the CSV file into a DataFrame
-        df = pd.read_csv(os.path.join('DeepLearning','tx', 'mimo2', 'data' + '.csv'))
+    # evaluateMcs()
+    # evaluatePmax()
 
-        # Group by 'pmax', 'mcs', and 'mimo', and calculate the average label for each group
-        result = df.groupby(['pmax', 'mcs', 'mimo'])['label'].mean()
-
-        # Output the results
-        file.write(result)
-
-    # checkFiles()
-    # checkMissingCombiantions()
-    commonLoad()
-
-    evaluatePmax()
-    myMain(tx_rx=tx_rx)
+    # commonLoad(tx_rx)
+    # myMain(tx_rx=tx_rx)
+    
+    # Deep Learning Here
 
     # firstSimpleModel()
     # evaluateBestModel()
-    # minimizeDataSet()
+    minimizeDataSet()
     # testSpeedPerformance()

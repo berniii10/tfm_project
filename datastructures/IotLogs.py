@@ -805,12 +805,12 @@ class IotLogs:
                         self.importantIndexes.pusch_times.append(self.timeIot[i])
 
     def getPdcchTimes(self, lim):
-        for i, (info, layer) in enumerate(zip(self.info, self.layer)):
+        for i, (info, layer, timeIot) in enumerate(zip(self.info, self.layer, self.timeIot)):
             if Layer.PHY == layer:
                 if Channel.PDCCH.value in info:
                     #if self.timeIot[i] > self.importantIndexes.registration_complete_time and self.timeIot[i] < 10:
-                    if self.timeIot[i] > -0.5 and self.timeIot[i] < lim:
-                        self.importantIndexes.pdcch_times.append(self.timeIot[i])
+                    if timeIot > -0.5 and timeIot < lim:
+                        self.importantIndexes.pdcch_times.append(timeIot)
 
     def getPdschTimes(self, lim):
         for i, (info, layer) in enumerate(zip(self.info[self.importantIndexes.registration_complete_index:], self.layer[self.importantIndexes.registration_complete_index:]), start=self.importantIndexes.registration_complete_index):
@@ -908,9 +908,7 @@ class IotLogs:
             
             for power in self.powers_pdsch:
                 writer.writerows([
-                    mcs_table_conversion[f'{self.mcs_table}_{self.mcs_index}'],
-                    self.mimo,
-                    power,
+                    [mcs_table_conversion[f'{self.mcs_table}_{self.mcs_index}'], self.mimo, power,]
                 ])
         print("Written in Data file")
 
@@ -949,5 +947,6 @@ class ImportantIndexes():
         self.pdsch_times = []
 
     def getAllTimesList(self):
-        return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], self.pdcch_times, self.pdsch_times, self.pucch_times]
+        #return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], self.pdcch_times, self.pdsch_times, self.pucch_times]
+        return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], [], self.pdsch_times, self.pucch_times]
         

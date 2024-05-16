@@ -106,11 +106,14 @@ def getInfoFromData(data, train_data, train_label, test_data, test_label):
     print("Missing values in testing data:")
     print(test_data.isnull().sum())
     
-def getDataNormalizeAndSplit(cut_data_set=None, display_info=None):
+def getDataNormalizeAndSplit(tx_rx=None, cut_data_set=None, display_info=None):
     test_size=0.3
 
     # Step 1: Read the CSV file
-    data = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
+    if tx_rx == 'tx':
+        data = pd.read_csv(os.path.join('DeepLearning','tx', 'data' + '.csv'))
+    elif tx_rx == 'rx':
+        data = pd.read_csv(os.path.join('DeepLearning','rx', 'data' + '.csv'))
 
     data = data.sample(frac=1).reset_index(drop=True)
 
@@ -169,12 +172,12 @@ def firstSimpleModel():
 
     model.evaluateModel(x_test, y_test)
 
-def evaluateBestModel():
+def evaluateBestModel(tx_rx):
     # Define the sweep parameters
     num_layers_list = [2, 3, 4, 5]
     neurons_per_layer_list = [[256, 32], [512, 256, 32], [512, 256, 128, 32], [512, 256, 128, 64, 16]]
 
-    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx)
 
     # Create a list to store all the models
     all_models = []
@@ -217,22 +220,27 @@ def evaluateBestModel():
         print(f"Training MAE: {trn_mae}")
         model.evaluateModel(x_test, y_test)
 
-def minimizeDataSet():
+def minimizeDataSet(tx_rx):
     num_layers = 3
     neurons_per_layer = [512, 256, 32]
     test_mae = sys.float_info.min
-    cut_data_set = 1
+    cut_data_set = 0.1
+    batch_size = 512
 
     while test_mae < 0.1:
-        x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(cut_data_set=cut_data_set)
+        x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx, cut_data_set=cut_data_set)
+        if cut_data_set < 0.05:
+            batch_size = 64
+        if cut_data_set < 0.009:
+            batch_size = 8
 
         model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
-        model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+        model.trainModel(x_train, y_train, batch_size=batch_size, epochs=6)
         score = model.evaluateModel(x_test, y_test)
         print(f"For {cut_data_set*100}% of the dataset, the Loss achieved is: {score[0]} and the MAE: {score[1]}")
-
+        test_mae = score[1]
         if cut_data_set <= 0.1:
-            cut_data_set = cut_data_set-0.05
+            cut_data_set = cut_data_set-cut_data_set*0.5
         else:
             cut_data_set = cut_data_set-0.1
 
@@ -260,42 +268,27 @@ def testSpeedPerformance():
 
     print(f"Average time to perform a prediction: {sum(time_mean)/len(time_mean)} seconds")
 
-"""
-For the caller of the function:
+def plotPerformancePerDataset():
+    mae = [0.01860, 0.01828, 0.01814, 0.01817, 0.01817, 0.01822, 0.01853, 0.01848, 0.01862, 0.01827, 0.01955, 0.01987, 0.02059, 0.02049, 0.02091, 0.02224, 0.02248, 0.02342, 0.03585]
+    percentage_of_dataset = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 2.5, 1.25, 0.625, 0.3125, 0.1562, 0.07812, 0.039, 0.01953, 0.00976]
 
-# Define the sweep parameters
-num_layers_list = [3, 4, 5, 6]
-neurons_per_layer_list = [[512, 256, 1], [512, 256, 128, 1], [512, 256, 128, 64, 1], [512, 256, 128, 64, 32, 1]]
+def getDistanceFromPrediction(tx_rx):
+    num_layers = 3
+    n_rows = 5
+    neurons_per_layer = [512, 256, 32]
 
-# Create a list to store all the models
-all_models = []
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx)
 
-# Train each model and store it in the list
-for num_layers in num_layers_list:
-    for neurons_per_layer in neurons_per_layer_list:
-        # Create and train the model
-        model = FnnMode(num_layers=num_layers, neurons_per_layer=neurons_per_layer)
-        model.trainModel(x_train, y_train, batch_size=256, epochs=10)
+    model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+    model.trainModel(x_train, y_train, batch_size=256, epochs=6)
 
-        filename = f"saved_models/model_{num_layers}layers_{'_'.join(map(str, neurons_per_layer))}.h5"
-        model.saveModel(filename)
+    sample = x_test.iloc[[0]]
+    label = y_test.iloc[[0]]
 
-        all_models.append(model)
+    for i in range(0, n_rows, 1):
 
-# Plot loss for each model
-plt.figure(figsize=(10, 6))
-for i, model in enumerate(all_models):
-    # Get loss
-    trn_loss, _ = model.getLossAndAccuracy()
-    
-    # Plot loss
-    label = f'Model {i+1}: {model.model.count_params()} parameters'
-    plt.plot(np.arange(model.epochs) + 1, trn_loss, label=label)
+        sample = x_test.iloc[[i]]
+        label = y_test.iloc[[i]]
+        t, prediction = model.testTimePrediction(sample=sample)
 
-plt.xlabel('Epochs')
-plt.ylabel('Training Loss')
-plt.title('Training Loss for Different Models')
-plt.legend()
-plt.show()
-
-"""
+        print(f"Parameters: {sample}, Label: {label}, Prediction: {prediction}, Actual distance: {prediction-label}")

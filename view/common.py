@@ -29,7 +29,7 @@ def simplePlot(x_values, y_values, x_label, y_label, plot_title=None, x_lim_min=
     plt.yticks(fontsize=16)
 
     # Add a legend
-    plt.legend()
+    plt.legend(fontsize=10)
 
     # Show the plot
     plt.show(block=True)
@@ -59,15 +59,15 @@ def simplePlotTwoYValues(x_values, y_values1, y_values2, x_axis_label, y_axis_la
     plt.plot(x_values, y_values1, label=y_label1, color='blue', zorder=2)
 
     # Add labels and title
-    plt.xlabel(x_axis_label)
-    plt.ylabel(y_axis_label)
-    plt.title(plot_title)
+    plt.xlabel(x_axis_label, fontsize=16)
+    plt.ylabel(y_axis_label, fontsize=16)
+    plt.title(plot_title, fontsize=16)
     plt.grid(True, zorder=1)
 
     plt.xticks(x_values, fontsize=16)
 
     # Add a legend
-    plt.legend()
+    plt.legend(fontsize=10)
 
     # Show the plot
     plt.get_current_fig_manager().window.state('zoomed')
@@ -99,9 +99,9 @@ def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines
     colors_legend = ['PRACH', 'Registration Complete', 'PUSCH', 'PDCCH', 'PDSCH', 'PUCCH']
 
     plt.plot(x_values, y_values, label='Power Samples', zorder=2)
-    if y_min_lim != None and y_max_lim != None:
-        plt.axhline(y=y_min_lim, color='red', linestyle='--', linewidth=1)  # Horizontal line at y-value
-        plt.axhline(y=y_max_lim, color='red', linestyle='--', linewidth=1)  # Horizontal line at y-value
+    # if y_min_lim != None and y_max_lim != None:
+        # plt.axhline(y=y_min_lim, color='red', linestyle='--', linewidth=1)  # Horizontal line at y-value
+        # plt.axhline(y=y_max_lim, color='red', linestyle='--', linewidth=1)  # Horizontal line at y-value
 
     if lines_array != None:
         for i, lines in enumerate(lines_array):
@@ -116,13 +116,13 @@ def plotWithLines(x_values, y_values, x_label, y_label, plot_title, y_max, lines
                     plt.gca().add_patch(rect)
 
     # Add labels and title
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.title(plot_title)
+    plt.xlabel(x_label, fontsize=16)
+    plt.ylabel(y_label, fontsize=16)
+    plt.title(plot_title, fontsize=16)
     plt.grid(True, zorder=1)
 
     # Add a legend
-    plt.legend()
+    plt.legend(fontsize=10)
 
     # Show the plot
     plt.get_current_fig_manager().window.state('zoomed')

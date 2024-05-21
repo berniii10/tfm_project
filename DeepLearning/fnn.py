@@ -8,6 +8,8 @@ from keras import layers
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+global min_values, max_values, min_label, max_label
+
 class FnnMode():
 
     def __init__(self, input_shape, num_layers, neurons_per_layer, activation_function):
@@ -65,11 +67,12 @@ class FnnMode():
 
         return score
     
-    def testTimePrediction(self, sample):
+    def testTimePrediction(self, sample, verbose=None):
         start_time = time.time()
-        prediction = self.model.predict(sample)
+        prediction = self.model.predict(sample, verbose=0)
         end_time = time.time()
-        print(f"Prediction time: {end_time - start_time} seconds")
+        if verbose != None:
+            print(f"Prediction time: {end_time - start_time} seconds")
         return (end_time - start_time), prediction
     
 def getInfoFromData(data, train_data, train_label, test_data, test_label):
@@ -108,6 +111,7 @@ def getInfoFromData(data, train_data, train_label, test_data, test_label):
     
 def getDataNormalizeAndSplit(tx_rx=None, cut_data_set=None, display_info=None):
     test_size=0.3
+    global min_values, max_values, min_label, max_label
 
     # Step 1: Read the CSV file
     if tx_rx == 'tx':
@@ -119,6 +123,12 @@ def getDataNormalizeAndSplit(tx_rx=None, cut_data_set=None, display_info=None):
 
     if cut_data_set != None:
         data = data.sample(frac=cut_data_set).reset_index(drop=True)
+
+    # Calculate min and max values for each feature and label
+    min_values = data.drop('label', axis=1).min()
+    max_values = data.drop('label', axis=1).max()
+    min_label = data['label'].min()
+    max_label = data['label'].max()
 
     # Step 2: Split the data into training and testing sets and shuffle it
     train_data, test_data = train_test_split(data, test_size=test_size, random_state=42, shuffle=True)
@@ -135,29 +145,40 @@ def getDataNormalizeAndSplit(tx_rx=None, cut_data_set=None, display_info=None):
     test_data = test_data.drop('label', axis=1)  # Remove the target variable from the testing features
 
     # Step 4: Normalize the data using maximum values of each feature
-    max_values = train_data.max()
-    train_data_normalized = train_data / max_values
-    test_data_normalized = test_data / max_values
+    # Step 4: Normalize the data using min-max normalization
+    train_data_normalized = (train_data - min_values) / (max_values - min_values)
+    test_data_normalized = (test_data - min_values) / (max_values - min_values)
 
     # Normalize the target variable using maximum value
-    max_label = train_label.max()
-    train_label_normalized = train_label / max_label
-    test_label_normalized = test_label / max_label
+    train_label_normalized = (train_label - min_label) / (max_label - min_label)
+    test_label_normalized = (test_label - min_label) / (max_label - min_label)
 
     # Print lengths of train_data and test_data
     print("Length of train_data:", len(train_data))
     print("Length of test_data:", len(test_data))
 
+    print("Minimum values of each feature:")
+    print(min_values)
     print("Maximum values of each feature:")
     print(max_values)
+    print("Minimum value of the target variable:")
+    print(min_label)
     print("Maximum value of the target variable:")
     print(max_label)
 
     if display_info != None:
         getInfoFromData(data, train_data, train_label, test_data, test_label)
-        # getInfoFromData(data, train_data_normalized, train_label_normalized, test_data_normalized, test_label_normalized)
+        getInfoFromData(data, train_data_normalized, train_label_normalized, test_data_normalized, test_label_normalized)
 
     return train_data_normalized, train_label_normalized, test_data_normalized, test_label_normalized
+
+def deNormalizeData(params, label, prediction):
+    params = params.flatten()
+    denormalized_params = params * (max_values - min_values) + min_values
+    denormalized_label = label * (max_label - min_label) + min_label
+    denormalized_prediction = prediction * (max_label - min_label) + min_label
+    return denormalized_params, denormalized_label, denormalized_prediction
+    # return params * max_values.values.reshape(1, -1), label * max_label, prediction * max_label
 
 def firstSimpleModel():
     x_train, y_train, x_test, y_test = getDataNormalizeAndSplit()
@@ -225,24 +246,51 @@ def minimizeDataSet(tx_rx):
     neurons_per_layer = [512, 256, 32]
     test_mae = sys.float_info.min
     cut_data_set = 0.1
-    batch_size = 512
+    batch_size = 256
+    distance_avg = 0
+    distance = []
+    n_rows = 20
 
-    while test_mae < 0.1:
+    while distance_avg < 1:
         x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx, cut_data_set=cut_data_set)
-        if cut_data_set < 0.05:
-            batch_size = 64
-        if cut_data_set < 0.009:
-            batch_size = 8
 
+        # Create model
         model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
         model.trainModel(x_train, y_train, batch_size=batch_size, epochs=6)
+
+        # Evaluate model
         score = model.evaluateModel(x_test, y_test)
         print(f"For {cut_data_set*100}% of the dataset, the Loss achieved is: {score[0]} and the MAE: {score[1]}")
         test_mae = score[1]
+        
+        # Get distance average
+        random_indices = x_test.sample(n=n_rows, random_state=42).index
+
+        random_x_test = x_test.loc[random_indices]
+        random_y_test = y_test.loc[random_indices]
+
+        for index, (random_x_index, random_y) in enumerate(zip(random_x_test.index, random_y_test), 1):
+            random_x_values = x_test.iloc[[random_x_index]].values
+            t, prediction = model.testTimePrediction(sample=random_x_values)
+
+            params, label, prediction = deNormalizeData(random_x_values, random_y, prediction)
+
+            # print(f"Parameters: {params}, Label: {label}, Prediction: {prediction}, Distance: {prediction-label}")
+            distance.append(prediction[0][0]-label)
+        
+        distance_avg = sum(distance)/len(distance)
+        distance.clear()
+
+        # Update values
         if cut_data_set <= 0.1:
             cut_data_set = cut_data_set-cut_data_set*0.5
         else:
             cut_data_set = cut_data_set-0.1
+
+        if cut_data_set < 0.05:
+            batch_size = 32
+        if cut_data_set < 0.009:
+            batch_size = 8
 
 def testSpeedPerformance():
     num_layers = 3
@@ -274,21 +322,76 @@ def plotPerformancePerDataset():
 
 def getDistanceFromPrediction(tx_rx):
     num_layers = 3
-    n_rows = 5
+    n_rows = 1000
     neurons_per_layer = [512, 256, 32]
 
-    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx)
+    x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx, display_info=None)
 
     model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
     model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+    # model.trainModel(x_train, y_train, batch_size=131072, epochs=2)
 
-    sample = x_test.iloc[[0]]
-    label = y_test.iloc[[0]]
+    random_indices = x_test.sample(n=n_rows, random_state=42).index
 
-    for i in range(0, n_rows, 1):
+    random_x_test = x_test.loc[random_indices]
+    random_y_test = y_test.loc[random_indices]
 
-        sample = x_test.iloc[[i]]
-        label = y_test.iloc[[i]]
-        t, prediction = model.testTimePrediction(sample=sample)
+    distance = []
 
-        print(f"Parameters: {sample}, Label: {label}, Prediction: {prediction}, Actual distance: {prediction-label}")
+    
+    for index, (random_x_index, random_y) in enumerate(zip(random_x_test.index, random_y_test), 1):
+        random_x_values = x_test.iloc[[random_x_index]].values
+        t, prediction = model.testTimePrediction(sample=pd.DataFrame(random_x_values, columns=max_values.index))
+
+        params, label, prediction = deNormalizeData(random_x_values, random_y, prediction)
+
+        print(f"Parameters: {params}, Label: {label}, Prediction: {prediction}, Distance: {prediction-label}")
+        distance.append(prediction[0][0]-label)
+
+    n_bins = 100
+    plt.hist(distance, bins=n_bins, color='blue', edgecolor='black', range=(-0.5, 1))
+
+    # Add labels and title
+    plt.xlabel('Error [W]', fontsize=16)
+    plt.ylabel('Number of Predictions', fontsize=16)
+    plt.title('Histogram of Error commited between Prediction and Label', fontsize=32)
+
+    # Display the plot
+    plt.show(block=True)
+    
+
+
+"""
+    sample_values = [
+        [21, 0, 1],
+        [16, 0, 1],
+        [0, 11, 1],
+        [20, 14, 1],
+        [-5, 14, 1],
+        [-5, 33, 1],
+        [19, 35, 1],
+        [8, 35, 1],
+        [9, 10, 2],
+        [21,11,2],
+        [14,12,2],
+        [8,16,2],
+        [14,33,2],
+        [-1,35,2]
+    ]
+    label_values = [
+        3.0359619944444445,
+        1.78739225625,
+        0.9447238944444446,
+        2.5128205,
+        0.9133576937500001,
+        1.00833173125,
+        2.5114177875,
+        1.148168225,
+        1.2036204000000001,
+        3.01781088125,
+        1.62117875,
+        1.19053521875,
+        1.43332874375,
+        0.91837245
+    ]
+"""

@@ -282,12 +282,87 @@ def testSpeedAndDistance(tx_rx, n_rows, num_layers, neurons_per_layer, cut_data_
         
     return distances, times, relative_error
     
+def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot_absolute_error=True, plot_relative_error=True, n_bins=100):
+    n_bins = 100
+    if cut_data_set != None:
+        percentage_of_dataset = cut_data_set*100
+    if plot_absolute_error == True:
+        # ---------------- Absolute Error here ----------------
+        plt.hist(absolute_error_list, bins=n_bins, color='blue', edgecolor='black', range=(-0.5, 1))
+
+
+        # Add labels and title
+        plt.xlabel('Error [W]', fontsize=24)
+        plt.ylabel('Number of Predictions', fontsize=24)
+        if cut_data_set != None:
+            plt.title(f'Histogram of Absolute Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=32)
+        else:
+            plt.title(f'Histogram of Absolute Error committed between Prediction and Label', fontsize=32)
+
+        x_ticks = np.arange(-0.5, 1.1, 0.1)
+        plt.xticks(x_ticks, fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.get_current_fig_manager().window.state('zoomed')
+
+        # Display the plot
+        if cut_data_set != None:
+            plt.savefig(f"output_figures/absolute_error_histogram_{percentage_of_dataset}%.png", dpi=300, bbox_inches='tight')
+        plt.show(block=True)
+        plt.clf()
+
+    if plot_relative_error == True:
+        # ---------------- Relative error here ----------------
+        plt.hist(relative_error_list, bins=n_bins, color='blue', edgecolor='black', range=(0, 50))
+
+        # Add labels and title
+        plt.xlabel('Error [%]', fontsize=24)
+        plt.ylabel('Number of Predictions', fontsize=24)
+        if cut_data_set != None:
+            plt.title(f'Histogram of Relative Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=32)
+        else:
+            plt.title(f'Histogram of Relative Error committed between Prediction and Label', fontsize=32)
+
+        x_ticks = np.arange(0, 51, 1)
+        plt.xticks(x_ticks, fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.get_current_fig_manager().window.state('zoomed')
+
+        # Display the plot
+        if cut_data_set != None:
+            plt.savefig(f"output_figures/relative_error_histogram_{percentage_of_dataset}%.png", dpi=300, bbox_inches='tight')
+        plt.show(block=True)
+
+def getDataFromAbsoluteAndRelativeError(absolute_error, relative_error):
+    a = 0
+    b = 0
+    for ae in absolute_error:
+        if ae < 0.1 and ae > -0.1:
+            b += 1
+        if ae > 0.4:
+            a +=1
+
+    below_two = 0
+    below_five = 0
+    below_ten = 0
+    below_twenty = 0
+
+    for re in relative_error:
+        if re < 2:
+            below_two += 1
+        if re < 5:
+            below_five += 1
+        if re < 10:
+            below_ten += 1
+        if re < 20:
+            below_twenty += 1
+
+    return a, b, below_two, below_five, below_ten, below_twenty
 
 def minimizeDataSet(tx_rx):
     global num_layers_, neurons_per_layer_
 
     # cut_data_set_list = [0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]
-    cut_data_set_list = [0.05]
+    cut_data_set_list = [0.0001]
     batch_size = 256
     epochs = 6
     n_rows = 1000
@@ -312,41 +387,17 @@ def minimizeDataSet(tx_rx):
         average_distances.append(sum(distances)/len(distances))
         percentage_of_dataset.append(cut_data_set*100)
 
-        n_bins = 100
-        # ---------------- Absolute Error here ----------------
-        plt.hist(distances, bins=n_bins, color='blue', edgecolor='black', range=(-0.5, 1))
+        plotErrors(absolute_error_list=distances, relative_error_list=relative_error, cut_data_set=cut_data_set)
 
-        # Set ticks to go from -0.5 to 1
-        x_ticks = np.arange(-0.5, 1.1, 0.1)
-        plt.xticks(x_ticks)
-
-        # Add labels and title
-        plt.xlabel('Error [W]', fontsize=16)
-        plt.ylabel('Number of Predictions', fontsize=16)
-        plt.title(f'Histogram of Error committed between Prediction and Label for {cut_data_set*100}', fontsize=32)
-
-        plt.get_current_fig_manager().window.state('zoomed')
-
-        # Display the plot
-        # plt.show(block=True)
-        plt.savefig(f"absolute_error_histogram_{cut_data_set*100}%.png")
+        a, b, below_two, below_five, below_ten, below_twenty = getDataFromAbsoluteAndRelativeError(distances, relative_error)
+        print(f"Numer of points beyond 0.4: {a}. Number of points inside +- 0.1 {b}")
+        print(f"Numer of points below 2%: {below_two}. Numer of points below 5%: {below_five}.Numer of points below 10%: {below_ten}. Numer of points below 20%: {below_twenty}.")
 
         print(f"For {cut_data_set*100} of the dataset, average error distance: {average_distances[-1]}")
+
         distances.clear()
-
-        # ---------------- Relative error here ----------------
-        plt.hist(relative_error, bins=n_bins, color='blue', edgecolor='black', range=(-0.1, 10))
-
-        # Add labels and title
-        plt.xlabel('Error [%]', fontsize=16)
-        plt.ylabel('Number of Predictions', fontsize=16)
-        plt.title(f'Histogram of Error committed between Prediction and Label for {cut_data_set*100}', fontsize=32)
-
-        plt.get_current_fig_manager().window.state('zoomed')
-
-        # Display the plot
-        plt.show(block=True)
-        plt.savefig(f"relative_error_histogram_{cut_data_set*100}%.png")
+        times.clear()
+        relative_error.clear()
 
     print(average_distances)
     print(percentage_of_dataset)
@@ -357,29 +408,11 @@ def getDistanceFromPrediction(tx_rx):
 
     distances, times, relative_error = testSpeedAndDistance(tx_rx=tx_rx, num_layers=num_layers_, neurons_per_layer=neurons_per_layer_, n_rows=n_rows)
 
-    n_bins = 100
-    plt.hist(distances, bins=n_bins, color='blue', edgecolor='black', range=(-0.5, 1))
+    plotErrors(absolute_error_list=distances, relative_error_list=relative_error)
 
-    # Optionally, you can set the x-ticks to ensure they are well-distributed
-    x_ticks = np.arange(-0.5, 1.1, 0.1)
-    plt.xticks(x_ticks)
-
-    # Add labels and title
-    plt.xlabel('Error [W]', fontsize=16)
-    plt.ylabel('Number of Predictions', fontsize=16)
-    plt.title('Histogram of Error committed between Prediction and Label', fontsize=32)
-
-    # Display the plot
-    plt.show(block=True)
-
-    a = 0
-    b = 0
-    for dis in distances:
-        if dis < 0.1 and dis > -0.1:
-            b += 1
-        if dis > 0.4:
-            a +=1
+    a, b, below_two, below_five, below_ten, below_twenty = getDataFromAbsoluteAndRelativeError(distances, relative_error)
     print(f"Numer of points beyond 0.4: {a}. Number of points inside +- 0.1 {b}")
+    print(f"Numer of points below 2%: {below_two}. Numer of points below 5%: {below_five}.Numer of points below 10%: {below_ten}. Numer of points below 20%: {below_twenty}.")
 
 def testSpeedPerformance(tx_rx):
     global num_layers_, neurons_per_layer_

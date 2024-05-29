@@ -101,10 +101,10 @@ def commonLoad(tx_rx):
     
 
     if load_data_from == 'CSV':
-        pmax = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
+        pmax = [21] # 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5
         mcs_table = ['qam256'] # qam64
-        mcs_index = [6, 7, 8, 9, 10] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
-        n_antenna_ul = [2]
+        mcs_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+        n_antenna_ul = [1]
         n_antenna_dl = [1]
         
         if Psu == True:
@@ -162,10 +162,13 @@ def commonLoad(tx_rx):
         with open(os.path.join('datastructures','files', 'ProcessedData', 'CampaignIotLogs' + str(campaign_id) + '.pkl'), 'wb') as file:
             pickle.dump(campaign_iot_logs, file)
 
-def evaluatePmax(mcs=None):
+def evaluatePmax(mcs=None, tx_rx=None):
     
     # Read the CSV file into a DataFrame
-    df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
+    if tx_rx == 'tx':
+        df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
+    elif tx_rx == 'rx':
+        df = pd.read_csv(os.path.join('DeepLearning', 'rx', 'data' + '.csv'))
 
     # Specify the desired 'MCS' and 'MIMO' values
     if mcs == None:
@@ -187,26 +190,33 @@ def evaluatePmax(mcs=None):
     # Group by 'pmax' and calculate the average label for each group
     average_labels2 = filtered_df2.groupby('pmax')['label'].mean()
 
-    p_max = [21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5]
+    p_max = [7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5]
 
     simplePlot(p_max[::-1], average_labels, "Power Transmission [dBm]", "Power Consumption [W]", "Power Consumption based on Power Transmission for MIMO 2x2", scatter=1)
     simplePlotTwoYValues(p_max[::-1], average_labels, average_labels2, 'Transmission Power [dBm]', "Power Consumption [W]", 'MIMO 2x2', 'SISO', 'Power consumption based on Transmission Power for SISO and MIMO 2x2')
     simplePlot(p_max[::-1], average_labels2, "Power Transmission [dBm]", "Power Consumption [W]", "Power Consumption based on Power Transmission for SISO", scatter=1)
 
-def evaluateMcs():
+def evaluateMcs(tx_rx=None):
         # Read the CSV file into a DataFrame
-    df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
+    if tx_rx == 'tx':
+        df = pd.read_csv(os.path.join('DeepLearning', 'tx', 'prev', 'data' + '.csv'))
+    elif tx_rx == 'rx':
+        df = pd.read_csv(os.path.join('DeepLearning', 'rx', 'prev', 'data' + '.csv'))
 
     # Specify the desired 'MCS' and 'MIMO' values
     mimo_value = 1
-    pmax = 21
-
+    pmax = 10
+    
     mcs_index1 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
     mcs_index2 = [29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
 
     # Filter the DataFrame based on the specified 'MCS' and 'MIMO' values
-    filtered_mcs64 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index1))]
-    filtered_mcs256 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index2))]
+    if tx_rx == 'tx':
+        filtered_mcs64 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index1))]
+        filtered_mcs256 = df[(df['pmax'] == pmax) & (df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index2))]
+    elif tx_rx == 'rx':
+        filtered_mcs64 = df[(df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index1))]
+        filtered_mcs256 = df[(df['mimo'] == mimo_value) & (df['mcs'].isin(mcs_index2))]
 
     # Group by 'pmax' and calculate the average label for each group
     average_labels_filtered_mcs64 = filtered_mcs64.groupby('mcs')['label'].mean()
@@ -238,15 +248,15 @@ def myMain(tx_rx):
     with open(file, "a") as file:
         for campaign_psu_log, campaign_iot_log in zip(campaign_psu_logs.campaign_psu_logs, campaign_iot_logs.campaign_iot_logs):
 
-            #print(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
-            #    f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
-            #    f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median:.3f} [W]\n"
-            #    f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min:.3f} [W]\n"
-            #    f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max:.3f} [W]\n"
-            #    f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation:.3f} or {campaign_iot_log.p_tx_standard_deviation*100/campaign_iot_log.p_tx_mean:.3f}%\n"
-            #    f"- Confidence Interval Low {campaign_iot_log.p_tx_confidence_interval[0]:.3f}\n"
-            #    f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
-            #    "--------------------------------------------------------------------")
+            print(f"For power transmission: {campaign_iot_log.p_max}dBm, MCS Index: {campaign_iot_log.mcs_index} and Table: {campaign_iot_log.mcs_table}, MIMO: {campaign_iot_log.mimo} and BW: {campaign_iot_log.bw} and Frequency Band {campaign_iot_log.freq_band}\n"
+                f"- Mean of the Power Consumption was {campaign_iot_log.p_tx_mean:.3f} [W]\n"
+                f"- Median of the Power Consumption was {campaign_iot_log.p_tx_median:.3f} [W]\n"
+                f"- Minimum of the Power Consumption was {campaign_iot_log.p_tx_min:.3f} [W]\n"
+                f"- Maximum of the Power Consumption was {campaign_iot_log.p_tx_max:.3f} [W]\n"
+                f"- Standard Deviation {campaign_iot_log.p_tx_standard_deviation:.3f} or {campaign_iot_log.p_tx_standard_deviation*100/campaign_iot_log.p_tx_mean:.3f}%\n"
+                f"- Confidence Interval Low {campaign_iot_log.p_tx_confidence_interval[0]:.3f}\n"
+                f"- Confidence Interval High {campaign_iot_log.p_tx_confidence_interval[1]:.3f}\n"
+                "--------------------------------------------------------------------")
 
             print(rf"\textbf{campaign_iot_log.p_max}  & {campaign_iot_log.p_tx_mean:.3f}  & {campaign_iot_log.p_tx_median:.3f}  & {campaign_iot_log.p_tx_standard_deviation:.3f}  & {campaign_iot_log.p_tx_confidence_interval[0]:.3f}  & {campaign_iot_log.p_tx_confidence_interval[1]:.3f} \\ \hline")
             
@@ -274,14 +284,14 @@ def myMain(tx_rx):
             # psuRawPlotWithLinesArray(psu_logs=campaign_psu_log.psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
         
         all_times = campaign_iot_logs.campaign_iot_logs[0].importantIndexes.getAllTimesList()
-        # psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
+        psuRawPlotWithLinesArray(psu_logs=campaign_psu_logs.campaign_psu_logs[0].psu_logs, y_min=-0.5, y_max=4, lines_array=all_times, y_min_lim=campaign_iot_log.p_tx_min, y_max_lim=campaign_iot_log.p_tx_max)
 
     # simplePlot(mcs_indexes, mean, "MCS Index", "Power Consumption [W]", "Power Consumption based on MCS Index", scatter=1)
     # simplePlot(p_tx, mean, "Power Transmission [dBm]", "Power Consumption [W]", "Power based on Power Transmission", scatter=1)
     # plotConfidenceInterval(p_tx, mean, lower_ci=lower_ci, upper_ci=upper_ci)
 
     if tx_rx == 'tx':
-        campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
+        # campaign_iot_logs.saveDataToCsvForDeepLearningModelPusch()
         pass
     elif tx_rx == 'rx':
         campaign_iot_logs.saveDataToCsvForDeepLearningModelPdsch()
@@ -290,10 +300,10 @@ def myMain(tx_rx):
     return 1
 
 if __name__ == "__main__":
-    tx_rx = 'tx'
+    tx_rx = 'rx'
 
-    # evaluateMcs()
-    # evaluatePmax()
+    # evaluateMcs(tx_rx)
+    # evaluatePmax(tx_rx)
 
     # commonLoad(tx_rx)
     # myMain(tx_rx=tx_rx)
@@ -301,6 +311,7 @@ if __name__ == "__main__":
     # Deep Learning Here
 
     # firstSimpleModel()
-    # evaluateBestModel()
-    minimizeDataSet()
-    # testSpeedPerformance()
+    # evaluateBestModel(tx_rx)
+    minimizeDataSet(tx_rx)
+    # getDistanceFromPrediction(tx_rx)
+    # testSpeedPerformance(tx_rx=tx_rx)

@@ -11,8 +11,8 @@ from sklearn.model_selection import train_test_split
 
 global min_values, max_values, min_label, max_label
 
-num_layers_ = 4
-neurons_per_layer_ = [512, 256, 128, 32]
+num_layers_ = 2
+neurons_per_layer_ = [256, 32]
 
 class FnnMode():
 
@@ -115,7 +115,7 @@ def getInfoFromData(data, train_data, train_label, test_data, test_label):
     
 def getDataNormalizeAndSplit(tx_rx=None, cut_data_set=None, display_info=None, test_size=None):
     if test_size == None:
-        test_size=0.3
+        test_size=0.2
     global min_values, max_values, min_label, max_label
 
     # Step 1: Read the CSV file
@@ -215,9 +215,12 @@ def evaluateBestModel(tx_rx):
     for num_layers, neurons_per_layer in zip(num_layers_list, neurons_per_layer_list):
         print(f"Creating model for Num Layers: {num_layers} and Num Neurons: {neurons_per_layer}")
         # Create and train the model
-        model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
-        model.trainModel(x_train, y_train, batch_size=256, epochs=6)
-
+        if tx_rx == 'tx':
+            model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+            model.trainModel(x_train, y_train, batch_size=256, epochs=6)
+        elif tx_rx == 'rx':
+            model = FnnMode(input_shape=2, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+            model.trainModel(x_train, y_train, batch_size=16, epochs=10)
         # filename = f"saved_models/model_{num_layers}layers_{'_'.join(map(str, neurons_per_layer))}.h5"
         # model.saveModel(filename)
 
@@ -259,7 +262,10 @@ def testSpeedAndDistance(tx_rx, n_rows, num_layers, neurons_per_layer, cut_data_
     x_train, y_train, x_test, y_test = getDataNormalizeAndSplit(tx_rx=tx_rx, cut_data_set=cut_data_set, test_size=test_size)
 
     # Create model
-    model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+    if tx_rx == 'tx':
+        model = FnnMode(input_shape=3, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
+    elif tx_rx == 'rx':
+        model = FnnMode(input_shape=2, num_layers=num_layers, neurons_per_layer=neurons_per_layer, activation_function='relu')
     model.trainModel(x_train, y_train, batch_size=batch_size, epochs=epochs)
     loss, mae = model.getLossAndAccuracy()
     train_mae = mae [-1]
@@ -295,7 +301,7 @@ def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot
         plt.xlabel('Error [W]', fontsize=24)
         plt.ylabel('Number of Predictions', fontsize=24)
         if cut_data_set != None:
-            plt.title(f'Histogram of Absolute Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=32)
+            plt.title(f'Histogram of Absolute Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=28)
         else:
             plt.title(f'Histogram of Absolute Error committed between Prediction and Label', fontsize=32)
 
@@ -312,20 +318,20 @@ def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot
 
     if plot_relative_error == True:
         # ---------------- Relative error here ----------------
-        plt.hist(relative_error_list, bins=n_bins, color='blue', edgecolor='black', range=(0, 50))
+        plt.hist(relative_error_list, bins=n_bins, color='blue', edgecolor='black', range=(0, 40))
 
         # Add labels and title
         plt.xlabel('Error [%]', fontsize=24)
         plt.ylabel('Number of Predictions', fontsize=24)
         if cut_data_set != None:
-            plt.title(f'Histogram of Relative Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=32)
+            plt.title(f'Histogram of Relative Error committed between Prediction and Label for {percentage_of_dataset}% of the Dataset', fontsize=28)
         else:
             plt.title(f'Histogram of Relative Error committed between Prediction and Label', fontsize=32)
 
-        x_ticks = np.arange(0, 51, 1)
+        x_ticks = np.arange(0, 41, 1)
         plt.xticks(x_ticks, fontsize=20)
         plt.yticks(fontsize=20)
-        plt.get_current_fig_manager().window.state('zoomed')
+        # plt.get_current_fig_manager().window.state('zoomed')
 
         # Display the plot
         if cut_data_set != None:
@@ -361,10 +367,10 @@ def getDataFromAbsoluteAndRelativeError(absolute_error, relative_error):
 def minimizeDataSet(tx_rx):
     global num_layers_, neurons_per_layer_
 
-    # cut_data_set_list = [0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]
-    cut_data_set_list = [0.0001]
-    batch_size = 256
-    epochs = 6
+    # cut_data_set_list = [0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]
+    cut_data_set_list = [0.005]
+    batch_size = 8
+    epochs = 10
     n_rows = 1000
 
     distances = []
@@ -375,12 +381,19 @@ def minimizeDataSet(tx_rx):
     for cut_data_set in cut_data_set_list:
         # Update values
 
-        if cut_data_set < 0.05:
-            batch_size = 32
-            epochs = 10
-        if cut_data_set < 0.005:
-            batch_size = 8
-            epochs = 15
+        if tx_rx == 'tx':
+            if cut_data_set < 0.05:
+                batch_size = 32
+                epochs = 10
+            if cut_data_set < 0.005:
+                batch_size = 8
+                epochs = 15
+        elif tx_rx == 'rx':
+            if cut_data_set <= 0.05:
+                batch_size = 8
+                epochs = 10
+            if cut_data_set < 0.005:
+                epochs = 15
 
         distances, times, relative_error = testSpeedAndDistance(tx_rx=tx_rx, cut_data_set=cut_data_set, num_layers=num_layers_, neurons_per_layer=neurons_per_layer_, n_rows=n_rows, batch_size=batch_size, epochs=epochs)
 
@@ -406,7 +419,10 @@ def getDistanceFromPrediction(tx_rx):
     global num_layers_, neurons_per_layer_
     n_rows = 1000
 
-    distances, times, relative_error = testSpeedAndDistance(tx_rx=tx_rx, num_layers=num_layers_, neurons_per_layer=neurons_per_layer_, n_rows=n_rows)
+    if tx_rx == 'tx':
+        distances, times, relative_error = testSpeedAndDistance(tx_rx=tx_rx, num_layers=num_layers_, neurons_per_layer=neurons_per_layer_, n_rows=n_rows)
+    elif tx_rx == 'rx':
+        distances, times, relative_error = testSpeedAndDistance(tx_rx=tx_rx, num_layers=num_layers_, neurons_per_layer=neurons_per_layer_, n_rows=n_rows, batch_size=16, epochs=10)
 
     plotErrors(absolute_error_list=distances, relative_error_list=relative_error)
 

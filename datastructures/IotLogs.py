@@ -948,5 +948,5 @@ class ImportantIndexes():
 
     def getAllTimesList(self):
         return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], self.pdcch_times, self.pdsch_times, self.pucch_times]
-        #return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], [], self.pdsch_times, self.pucch_times]
+        # return [[self.prach_time], [self.registration_complete_time], self.pusch_times[1:], [], self.pdsch_times, self.pucch_times]
         

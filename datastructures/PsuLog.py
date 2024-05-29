@@ -114,23 +114,23 @@ class PsuLogs:
         return 1
 
     def searchVoltageSpike(self):
-        #found = -1
-        #while self.trigger > 0.5:
-        #    for i, psu_log in enumerate(self.psu_logs):
-        #        # if psu_log.amperes > 0.3: #0.275:
-        #        if psu_log.volts > self.trigger:
-        #            self.psu_time_offset = psu_log.starttime
-        #            print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
-        #            found = 1
-        #            break
-        #            # return found
-        #    if found == 1:
-        #        break
-        #    self.trigger = self.trigger - 0.1
+        found = -1
+        self.trigger = 2.5
+        while self.trigger > 0.5:
+            for i, psu_log in enumerate(self.psu_logs):
+                if psu_log.volts > self.trigger:
+                    self.psu_time_offset = psu_log.starttime
+                    print(f"Voltage Spike found at time {self.psu_time_offset} and index {i}")
+                    found = 1
+                    break
+                    # return found
+            if found == 1:
+                break
+            self.trigger = self.trigger-0.1
             
-        #return found
-        self.psu_time_offset = 0.9999974399998
-        return 1
+        return found
+        # self.psu_time_offset = 0.9999974399998 - 1.6666e-4
+        # return 1
 
     def calculateTimePsuAndPower(self):
         for psu_log in self.psu_logs:

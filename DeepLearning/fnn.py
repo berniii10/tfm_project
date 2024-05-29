@@ -288,7 +288,7 @@ def testSpeedAndDistance(tx_rx, n_rows, num_layers, neurons_per_layer, cut_data_
         
     return distances, times, relative_error
     
-def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot_absolute_error=True, plot_relative_error=True, n_bins=100):
+def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot_absolute_error=True, plot_relative_error=True, n_bins=100, save_fig=False):
     n_bins = 100
     if cut_data_set != None:
         percentage_of_dataset = cut_data_set*100
@@ -311,7 +311,7 @@ def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot
         plt.get_current_fig_manager().window.state('zoomed')
 
         # Display the plot
-        if cut_data_set != None:
+        if cut_data_set != None and save_fig == True:
             plt.savefig(f"output_figures/absolute_error_histogram_{percentage_of_dataset}%.png", dpi=300, bbox_inches='tight')
         plt.show(block=True)
         plt.clf()
@@ -334,7 +334,7 @@ def plotErrors(absolute_error_list, relative_error_list, cut_data_set=None, plot
         # plt.get_current_fig_manager().window.state('zoomed')
 
         # Display the plot
-        if cut_data_set != None:
+        if cut_data_set != None and save_fig == True:
             plt.savefig(f"output_figures/relative_error_histogram_{percentage_of_dataset}%.png", dpi=300, bbox_inches='tight')
         plt.show(block=True)
 

@@ -11,10 +11,10 @@ def connectToDb():
     try:
         myDb = psycopg2.connect(
             user='admin', 
-            password='alliot',
-            host='10.14.36.240',
-            database='alliot-raw_meas',
-            port=5432,
+            password='XXX',
+            host='XXX',
+            database='XXX',
+            port=XXX,
             connect_timeout=100)
         
         if myDb is None:
